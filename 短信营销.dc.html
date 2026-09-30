@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><style>body{margin:0;background:#f0f2f5;font-family:"PingFang SC","Microsoft YaHei",sans-serif;font-size:13px;color:#303133}a{color:#409eff;text-decoration:none}a:hover{color:#66b1ff}input,select,textarea{font-family:inherit}</style></helmet>
+<div style="display:flex;flex-direction:column;min-height:100vh">
+  <div style="background:#2d6fb3;color:#fff;display:flex;gap:22px;align-items:center;padding:0 16px;height:28px;font-weight:600;white-space:nowrap;overflow:hidden">
+    <span>在线人数: <b style="color:#ffd04b">23</b></span><span>当日注册: <b style="color:#ffd04b">1</b></span><span>当日充值成功: <b style="color:#ffd04b">2</b></span><span>预算告警: <b style="background:#f56c6c;padding:0 6px">0</b></span>
+  </div>
+  <div style="display:flex;flex:1">
+    <div style="width:160px;flex-shrink:0;background:#e8f0f8;border-right:1px solid #d6e2ef">
+      <div style="background:#4a90c8;color:#fff;font-weight:600;padding:14px 16px">菜单 ☰</div>
+      <div style="padding:12px 16px;border-bottom:1px solid #d6e2ef;font-weight:600">活动配置</div>
+      <div style="padding:12px 16px;border-bottom:1px solid #d6e2ef;font-weight:600">系统管理</div>
+      <div style="padding:12px 16px;border-bottom:1px solid #d6e2ef;font-weight:600">营销管理 ︿</div>
+      <div style="background:#3aa0e0;color:#fff;font-weight:600;padding:10px 16px 10px 22px;border-left:3px solid #f56c6c">▸ 短信营销配置</div>
+      <div style="padding:10px 16px 10px 22px;color:#606266">▸ 谷歌关键词管理</div>
+      <div style="padding:10px 16px 10px 22px;color:#606266">▸ 谷歌关键词 ROI</div>
+      <div style="padding:10px 16px 10px 22px;color:#606266">▸ 谷歌用户画像</div>
+    </div>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div style="background:#fff;padding:10px 12px;color:#606266;border-bottom:1px solid #ebeef5">位置 &gt; 营销管理 &gt; 短信营销配置</div>
+      <div style="padding:8px">
+        <div style="background:#fff;border:1px solid #dcdfe6">
+          <div style="display:flex;background:#f5f7fa;border-bottom:1px solid #e4e7ed">
+            <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+              <div onClick="{{ t.go }}" style="padding:12px 20px;white-space:nowrap;flex-shrink:0;cursor:pointer;background:{{ t.bg }};color:{{ t.color }};border-right:1px solid #e4e7ed;margin-bottom:-1px">{{ t.label }}</div>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ isChannel }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:16px;display:flex;flex-direction:column;gap:16px">
+              <div>
+                <div style="font-size:15px;font-weight:600;margin-bottom:10px">用途 → 渠道</div>
+                <div style="display:grid;grid-template-columns:1.2fr 1.6fr 1.4fr 1fr;border:1px solid #ebeef5">
+                  <div style="padding:10px;background:#fafafa;color:#909399;font-weight:600;border-bottom:1px solid #ebeef5">用途</div>
+                  <div style="padding:10px;background:#fafafa;color:#909399;font-weight:600;border-bottom:1px solid #ebeef5">任务</div>
+                  <div style="padding:10px;background:#fafafa;color:#909399;font-weight:600;border-bottom:1px solid #ebeef5">发送渠道</div>
+                  <div style="padding:10px;background:#fafafa;color:#909399;font-weight:600;border-bottom:1px solid #ebeef5">任务状态</div>
+                  <sc-for list="{{ routes }}" as="r" hint-placeholder-count="3">
+                    <div onClick="{{ r.go }}" style="padding:10px;cursor:pointer;background:{{ r.rowBg }};border-bottom:1px solid #ebeef5">{{ r.use }}</div>
+                    <div onClick="{{ r.go }}" style="padding:10px;cursor:pointer;background:{{ r.rowBg }};border-bottom:1px solid #ebeef5;font-family:Menlo,monospace;font-size:12px">{{ r.job }}</div>
+                    <div onClick="{{ r.go }}" style="padding:10px;cursor:pointer;background:{{ r.rowBg }};border-bottom:1px solid #ebeef5;display:flex;align-items:center;gap:6px"><span style="padding:1px 8px;white-space:nowrap;border-radius:3px;font-size:12px;background:{{ r.tagBg }};color:{{ r.tagColor }};border:1px solid {{ r.tagColor }}">{{ r.ch }}</span></div>
+                    <div onClick="{{ r.go }}" style="padding:10px;cursor:pointer;background:{{ r.rowBg }};border-bottom:1px solid #ebeef5;display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="color:{{ r.stColor }}">{{ r.st }}</span><a href="#" onClick="{{ r.go }}">{{ r.linkText }}</a></div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="font-size:15px;font-weight:600;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">当前配置：{{ selUseName }} <span style="font-family:Menlo,monospace;font-size:12px;color:#909399;font-weight:400">{{ selJob }}</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin-top:-6px">
+                <sc-for list="{{ channels }}" as="c" hint-placeholder-count="2">
+                  <div style="border:1px solid #dcdfe6;border-top:3px solid {{ c.color }}">
+                    <div style="padding:12px 14px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border-bottom:1px solid #ebeef5">
+                      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0">
+                        <div style="font-size:15px;font-weight:600">{{ c.name }}</div>
+                        <div style="color:#909399;font-size:12px;line-height:18px">配置表 <span style="font-family:Menlo,monospace;color:#606266;word-break:break-all">{{ c.table }}</span></div>
+                        <div style="color:#909399;font-size:12px">用于：{{ c.uses }}</div>
+                      </div>
+                      <div onClick="{{ c.toggle }}" style="display:flex;align-items:center;gap:8px;cursor:pointer;flex-shrink:0;white-space:nowrap">
+                        <div style="width:40px;height:20px;border-radius:10px;position:relative;background:{{ c.swBg }}"><div style="position:absolute;top:2px;left:{{ c.knob }};width:16px;height:16px;border-radius:50%;background:#fff"></div></div>
+                        <span>{{ c.swText }}</span>
+                      </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:130px 1fr">
+                      <sc-for list="{{ c.fields }}" as="f" hint-placeholder-count="7">
+                        <div style="padding:8px 10px;background:#fafafa;border-bottom:1px solid #ebeef5;border-right:1px solid #ebeef5;color:#606266;text-align:center;display:flex;align-items:center;justify-content:center">{{ f.label }}</div>
+                        <div style="padding:6px 10px;border-bottom:1px solid #ebeef5">
+                          <sc-if value="{{ f.isSelect }}" hint-placeholder-val="{{ false }}">
+                            <select value="{{ f.value }}" onChange="{{ f.set }}" style="width:100%;height:30px;border:1px solid #409eff;border-radius:3px;padding:0 8px;background:#fff;color:#303133">
+                              <sc-for list="{{ sendIds }}" as="o"><option value="{{ o }}">{{ o }}</option></sc-for>
+                            </select>
+                          </sc-if>
+                          <sc-if value="{{ f.isInput }}" hint-placeholder-val="{{ true }}">
+                            <input type="{{ f.type }}" value="{{ f.value }}" onChange="{{ f.set }}" style="width:100%;box-sizing:border-box;height:30px;border:1px solid #dcdfe6;border-radius:3px;padding:0 8px"></input>
+                          </sc-if>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <div style="padding:12px 14px;display:flex;gap:8px;align-items:center">
+                      <button onClick="{{ c.save }}" style="background:#409eff;color:#fff;border:0;border-radius:3px;padding:7px 16px;cursor:pointer">保存</button>
+                      <span style="color:#67c23a;font-size:12px">{{ c.saved }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isNotify }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+                <div style="font-size:15px;font-weight:600">动账通知规则 <span style="font-family:Menlo,monospace;font-size:12px;color:#909399;font-weight:400">AgentActivitySmppJob</span></div>
+              </div>
+              <div style="display:grid;grid-template-columns:0.8fr 1.4fr 1.3fr 0.9fr 0.6fr 0.7fr 1.4fr;border:1px solid #ebeef5;text-align:center">
+                <div style="padding:10px;background:#fafafa;color:#909399;font-weight:600;border-bottom:1px solid #ebeef5">类型</div>
+                <div style="padding:10px;background:#fafafa;color:#909399;font-weight:600;border-bottom:1px solid #ebeef5">业务场景</div>
+                <div style="padding:10px;background:#fafafa;color:#909399;font-weight:600;border-bottom:1px solid #ebeef5">发送渠道</div>
+                <div style="padding:10px;background:#fafafa;color:#909399;font-weight:600;border-bottom:1px solid #ebeef5">次数/天</div>
+                <div style="padding:10px;background:#fafafa;color:#909399;font-weight:600;border-bottom:1px solid #ebeef5">状态</div>
+                <div style="padding:10px;background:#fafafa;color:#909399;font-weight:600;border-bottom:1px solid #ebeef5">操作</div>
+                <div style="padding:10px;background:#fafafa;color:#909399;font-weight:600;border-bottom:1px solid #ebeef5">说明</div>
+                <sc-for list="{{ rules }}" as="r" hint-placeholder-count="4">
+                  <div style="padding:10px;border-bottom:1px solid #ebeef5;color:#606266">账户变动</div>
+                  <div style="padding:10px;border-bottom:1px solid #ebeef5">{{ r.scene }}</div>
+                  <div style="padding:6px 10px;border-bottom:1px solid #ebeef5"><select value="{{ r.ch }}" onChange="{{ r.setCh }}" style="width:100%;height:30px;border:1px solid #409eff;border-radius:3px;padding:0 6px;background:#fff;color:#303133"><option value="A">渠道 A · 动账通知</option><option value="B">渠道 B · 营销</option></select></div>
+                  <div style="padding:6px 10px;border-bottom:1px solid #ebeef5"><input value="{{ r.n }}" onChange="{{ r.setN }}" style="width:100%;box-sizing:border-box;height:30px;border:1px solid #dcdfe6;border-radius:3px;padding:0 8px"></input></div>
+                  <div style="padding:10px;border-bottom:1px solid #ebeef5;color:{{ r.stColor }}">{{ r.st }}</div>
+                  <div style="padding:10px;border-bottom:1px solid #ebeef5;display:flex;justify-content:center"><div onClick="{{ r.toggle }}" style="width:40px;height:20px;border-radius:10px;position:relative;cursor:pointer;background:{{ r.swBg }}"><div style="position:absolute;top:2px;left:{{ r.knob }};width:16px;height:16px;border-radius:50%;background:#fff"></div></div></div>
+                  <div style="padding:10px;border-bottom:1px solid #ebeef5;color:#606266">{{ r.desc }}</div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center"><button onClick="{{ saveRules }}" style="background:#409eff;color:#fff;border:0;border-radius:3px;padding:7px 16px;cursor:pointer">保存</button><span style="color:#67c23a;font-size:12px">{{ rulesSaved }}</span></div>
+            </div>
+          </sc-if>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    tab: 'channel',
+    ch: {
+      A: { on: true, host: 'smpp.m360.com.ph', port: '2614', systemId: '', password: '', sessionCount: '10', windowSize: '10', sendID: '789BingoVip' },
+      B: { on: false, host: 'smpp.m360.com.ph', port: '2614', systemId: '', password: '', sessionCount: '10', windowSize: '10', sendID: '789BingoVip' }
+    },
+    rules: [
+      { scene: '充值奖励到账', ch: 'A', n: '1', on: false, desc: '充值金额到账提醒' },
+      { scene: '提现到账（成功）', ch: 'B', n: '1', on: false, desc: '提现金额到账提醒' },
+      { scene: '提现到账（失败）', ch: 'B', n: '1', on: false, desc: '提现金额到账提醒' },
+      { scene: '奖励金到账（非充值类）', ch: 'B', n: '1', on: false, desc: '活动奖励到账提醒' }
+    ],
+    jobs: {
+      mkt: { on: false, content: ['', '', '', '', '', '', ''] },
+      t3: { on: false, content: [''] }
+    },
+    saved: {}
+  };
+  sw(on) { return { swBg: on ? '#13ce66' : '#ff4949', knob: on ? '22px' : '2px', swText: on ? '开启' : '关闭' }; }
+  flash(k) { this.setState(s => ({ saved: { ...s.saved, [k]: '已保存' } })); setTimeout(() => this.setState(s => ({ saved: { ...s.saved, [k]: '' } })), 1500); }
+  renderVals() {
+    const s = this.state;
+    const tabDefs = [['channel', '渠道配置'], ['notify', '动账通知']];
+    const tabs = tabDefs.map(([k, label]) => ({ label, bg: s.tab === k ? '#fff' : 'transparent', color: s.tab === k ? '#409eff' : '#606266', go: () => this.setState({ tab: k }) }));
+    const meta = {
+      A: { name: '渠道 A · 动账通知', table: 'agent_activity_smpp_config', uses: '动账通知', color: '#e6a23c' },
+      B: { name: '渠道 B · 营销', table: 'smpp_config', uses: '注册 / 充值营销、昨日充值营销', color: '#409eff' }
+    };
+    const keys = [['host', 'host'], ['port', 'port'], ['systemId', 'systemId'], ['password', 'password'], ['sessionCount', 'sessionCount'], ['windowSize', 'windowSize'], ['sendID', 'sendID']];
+    const sel = s.sel || 'notify';
+    const selCh = sel === 'notify' ? 'A' : 'B';
+    const channels = [selCh].map(id => {
+      const c = s.ch[id];
+      const upd = (k, v) => this.setState(st => ({ ch: { ...st.ch, [id]: { ...st.ch[id], [k]: v } } }));
+      return {
+        ...meta[id], ...this.sw(c.on),
+        toggle: () => upd('on', !c.on),
+        save: () => this.flash('ch' + id), saved: s.saved['ch' + id] || '',
+        fields: keys.map(([k, label]) => ({ label, value: c[k], isSelect: k === 'sendID', isInput: k !== 'sendID', type: k === 'password' ? 'password' : 'text', set: e => upd(k, e.target.value) }))
+      };
+    });
+    const tag = id => id === 'A' ? { ch: '渠道 A · 动账通知', tagColor: '#e6a23c', tagBg: '#fdf6ec' } : { ch: '渠道 B · 营销', tagColor: '#409eff', tagBg: '#ecf5ff' };
+    const st = on => ({ st: on ? '开启' : '关闭', stColor: on ? '#67c23a' : '#909399' });
+    const anyRule = s.rules.some(r => r.on);
+    const routes = [
+      { k: 'notify', use: '动账通知', job: 'AgentActivitySmppJob', ...tag('A'), ...st(s.ch.A.on) },
+      { k: 'mkt', use: '注册 / 充值营销', job: 'MarketingSmsJob', ...tag('B'), ...st(s.ch.B.on) },
+      { k: 't3', use: '昨日充值营销', job: 'T3SMPPJob', ...tag('B'), ...st(s.ch.B.on) }
+    ].map(r => ({ ...r, rowBg: r.k === sel ? '#ecf5ff' : '#fff', linkText: r.k === sel ? '配置中' : '配置', go: e => { e && e.preventDefault && e.preventDefault(); this.setState({ sel: r.k }); } }));
+    const selUse = routes.find(r => r.k === sel);
+    const setRule = (i, patch) => this.setState(st2 => ({ rules: st2.rules.map((r, j) => j === i ? { ...r, ...patch } : r) }));
+    const rules = s.rules.map((r, i) => ({ ...r, ...this.sw(r.on), ...st(r.on), toggle: () => setRule(i, { on: !r.on }), setN: e => setRule(i, { n: e.target.value }), setCh: e => setRule(i, { ch: e.target.value }) }));
+    const days = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
+    const jobMeta = { mkt: { title: '注册 / 充值营销', job: 'MarketingSmsJob', labels: days }, t3: { title: '昨日充值营销', job: 'T3SMPPJob', labels: ['内容'] } };
+    const jobs = ['mkt', 't3'].map(k => {
+      const j = s.jobs[k];
+      const upd = patch => this.setState(st2 => ({ jobs: { ...st2.jobs, [k]: { ...st2.jobs[k], ...patch } } }));
+      return {
+        ...jobMeta[k], ...this.sw(j.on), toggle: () => upd({ on: !j.on }),
+        save: () => this.flash('job' + k), saved: s.saved['job' + k] || '',
+        rows: jobMeta[k].labels.map((label, i) => ({ label, value: j.content[i], set: e => { const c = [...j.content]; c[i] = e.target.value; upd({ content: c }); } }))
+      };
+    });
+    return {
+      tabs, channels, routes, rules, jobs, selUseName: selUse.use, selJob: selUse.job,
+      sendIds: this.props.sendIds ?? ['789BingoVip', '789Bingo', '789BingoPH'],
+      isChannel: s.tab === 'channel', isNotify: s.tab === 'notify', isMkt: s.tab === 'mkt',
+      saveRules: () => this.flash('rules'), rulesSaved: s.saved.rules || ''
+    };
+  }
+}
+</script>
+</body>
+</html>
