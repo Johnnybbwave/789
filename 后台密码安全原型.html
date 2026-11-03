@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style>
+<title>后台密码安全原型</title>
+<style>
+/* 布局：完全沿用现有后台截图——深蓝顶栏 + 统计条 + 160px 浅蓝菜单 + 灰底内容；Element 默认尺寸弹窗、无遮罩 */
+:root{
+  --top:#1b63ad; --stat:#1d69b4; --side:#d6e5f2; --sideLine:#c3d6e8; --sideHead:#3f95db; --sideOn:#e4eef8; --sideIcon:#4f78a3;
+  --bg:#f0f0f0; --card:#ffffff; --fg:#303133; --label:#606266; --muted:#909399; --line:#e4e7ed; --field:#dcdfe6;
+  --primary:#409eff; --primaryHover:#66b1ff; --primaryOff:#a0cfff; --link:#409eff;
+  --danger:#f56c6c; --ok:#2b8a1e; --okIcon:#67c23a; --okBg:#f0f9eb; --badBg:#fef0f0; --badLine:#fbc4c4;
+  --warnFg:#b06000; --warnBg:#fdf6ec; --warnLine:#f5dab1;
+  --yellow:#f7c92b; --numRed:#ff6b6b; --numGreen:#4cd964; --red:#e02424; --green:#21a446;
+  --font:'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif;
+  --mono:ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:12px}
+a{color:var(--link);cursor:pointer;text-decoration:none}a:hover{text-decoration:underline}
+button{font:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--card)}
+.gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* Element 风格控件 */
+.btn{height:28px;padding:0 15px;border-radius:3px;border:1px solid var(--field);background:var(--card);color:var(--label);font-size:12px}
+.btn:hover{border-color:#c6e2ff;color:var(--primary);background:#ecf5ff}
+.btn.pri{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.pri:hover{background:var(--primaryHover);border-color:var(--primaryHover);color:#fff}
+.btn.pri:disabled{background:var(--primaryOff);border-color:var(--primaryOff);cursor:not-allowed}
+.btn.sm{height:24px;padding:0 10px}
+.btn.danger{color:var(--danger);border-color:var(--badLine);background:var(--badBg)}
+.inp{width:100%;height:24px;border:1px solid var(--field);border-radius:2px;padding:0 10px;font-size:12px}
+.inp:focus{outline:none;border-color:var(--primary)}
+.inp.err{border-color:var(--danger)}
+.errtxt{color:var(--danger);font-size:11px;line-height:14px;min-height:14px;padding-top:2px}
+
+/* 顶栏 */
+#app{min-height:100%;display:flex;flex-direction:column}
+.topbar{background:var(--top);color:#fff;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 16px;min-height:36px;padding-block:6px}
+.topbar .t{font-weight:700;font-size:12px}
+.clock{color:var(--yellow);font-variant-numeric:tabular-nums}
+.top-r{display:flex;flex-wrap:wrap;align-items:center;gap:18px}
+.top-r .ico{display:inline-flex;align-items:center;gap:4px;color:#fff;background:none;border:none;padding:0;font-size:12px}
+.uname{font-family:'Times New Roman',Georgia,serif;font-weight:700;font-size:12px}
+.exp-chip{display:inline-flex;align-items:center;gap:5px;background:#fff4e0;color:#8a4b00;border:none;padding:2px 9px;border-radius:10px;font-weight:600;font-size:12px}
+.user{position:relative}
+.menu-pop{position:absolute;right:0;top:calc(100% + 8px);background:var(--card);border:1px solid var(--line);border-radius:4px;box-shadow:0 2px 12px rgba(0,0,0,.12);min-width:120px;z-index:30;display:flex;flex-direction:column;padding:6px 0}
+.menu-pop button{background:none;border:none;text-align:left;padding:8px 16px;color:var(--fg);font-size:12px}
+.menu-pop button:hover{background:#ecf5ff;color:var(--primary)}
+
+/* 统计条 */
+.statbar{background:var(--stat);color:#fff;display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;min-height:34px;padding-block:6px;font-weight:700;font-size:13px;border-top:1px solid rgba(255,255,255,.12)}
+.statbar .v{margin-left:4px}
+.statbar .v.n-r{color:var(--numRed)}.statbar .v.n-y{color:var(--yellow)}.statbar .v.n-g{color:var(--numGreen)}
+.statbar .v.b-r,.statbar .v.b-g{display:inline-block;min-width:24px;text-align:center;color:#fff;padding:1px 6px;border-radius:2px;margin-left:6px}
+.statbar .v.b-r{background:var(--red)}.statbar .v.b-g{background:var(--green)}
+.banner{background:var(--warnBg);border-bottom:1px solid var(--warnLine);color:#7a4500;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding-block:8px}
+
+/* 菜单 */
+.body{display:flex;flex-wrap:wrap;flex:1}
+nav{flex:0 0 160px;background:var(--side);display:flex;flex-direction:column}
+.navhead{background:var(--sideHead);color:#fff;font-weight:700;padding:0 16px;height:44px;display:flex;align-items:center;gap:6px;font-size:12px}
+.nav-i{display:flex;align-items:center;gap:8px;width:100%;min-height:46px;background:none;border:none;border-bottom:1px solid var(--sideLine);padding:0 12px 0 max(16px,env(safe-area-inset-left,0px));color:var(--fg);text-align:left;font-size:12px}
+.nav-i:hover{background:var(--sideOn)}
+.nav-i .lbl{flex:1}
+.nav-i.on{color:var(--primary)}
+.nav-i.home{justify-content:center;padding-left:0}
+.nav-i.home .lbl{flex:none}
+.nav-badge{background:var(--red);color:#fff;font-size:10px;line-height:14px;min-width:14px;text-align:center;padding:0 3px;border-radius:2px;margin-right:12px}
+.chev{color:#8a98a8;font-size:10px}
+.nav-sub{background:#e6eff8}
+.nav-sub .nav-i{padding-left:max(38px,env(safe-area-inset-left,0px));min-height:40px}
+nav.locked{opacity:.5}
+main{flex:1 1 560px;min-width:0;display:flex;flex-direction:column}
+.crumb{background:var(--card);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;min-height:32px;padding:4px 12px;border-bottom:1px solid var(--line);color:var(--label)}
+.crumb .sep{color:#c0c4cc;margin:0 8px}
+.crumb input{width:200px;max-width:100%;height:24px;border:1px solid var(--field);border-radius:2px;padding:0 8px;font-size:11px}
+.page{padding:20px 24px;display:flex;flex-direction:column;gap:14px;padding-right:max(24px,env(safe-area-inset-right,0px))}
+
+/* 个人中心 */
+.welcome{display:flex;flex-direction:column;gap:14px;padding-bottom:16px;border-bottom:1px solid #e0e3e8}
+.wl{display:flex;align-items:center;gap:8px;line-height:20px}
+.wl .ic{width:26px;flex:none;display:flex;justify-content:center}
+.wl.indent{padding-left:34px}
+
+/* 通用面板 */
+.panel{background:var(--card);border:1px solid var(--line);border-radius:2px}
+.panel-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);font-weight:700;font-size:13px}
+.panel-b{padding:16px}
+.pill{display:inline-block;padding:0 7px;line-height:20px;border-radius:3px;font-size:12px;white-space:nowrap;border:1px solid transparent}
+.pill.ok{background:var(--okBg);color:var(--ok);border-color:#e1f3d8}
+.pill.warn{background:var(--warnBg);color:var(--warnFg);border-color:var(--warnLine)}
+.pill.bad{background:var(--badBg);color:#c45656;border-color:var(--badLine)}
+.pill.info{background:#ecf5ff;color:#3a7fcc;border-color:#d9ecff}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid #ebeef5;white-space:nowrap;font-variant-numeric:tabular-nums}
+th{background:#f5f7fa;color:var(--label);font-weight:700}
+td.wrap{white-space:normal;min-width:180px}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+
+/* 策略表单 */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px 28px}
+.frow{display:flex;flex-direction:column;gap:6px}
+.frow>label,.frow>.lab{font-weight:700;color:var(--label)}
+.hint{color:var(--muted);font-size:11px}
+.unit{display:flex;align-items:center;gap:8px}
+.unit .inp{max-width:110px}
+.chk{display:flex;align-items:flex-start;gap:6px;line-height:1.6}
+.chk input{margin-top:3px}
+.radios{display:flex;flex-wrap:wrap;gap:16px}
+.radios label{display:flex;align-items:center;gap:5px}
+textarea.inp{height:auto;min-height:110px;padding:6px 10px;font-family:var(--mono);font-size:12px;resize:vertical}
+.sec-t{font-weight:700;color:var(--fg);padding-bottom:6px;border-bottom:1px solid var(--line);grid-column:1/-1}
+.form-foot{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid var(--line)}
+
+/* 弹窗：与截图一致，无遮罩，宽 50%，距顶 145px */
+.mask{position:fixed;inset:0;display:flex;justify-content:center;align-items:flex-start;padding-top:max(145px,env(safe-area-inset-top,0px));padding-bottom:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow-y:auto;z-index:50;pointer-events:none}
+.mask>*{pointer-events:auto}
+.mask.lock{background:rgba(0,0,0,.35);pointer-events:auto}
+.dlg{width:50%;min-width:min(100%,600px);max-width:100%;background:var(--card);border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.dlg.sm{width:420px;min-width:0}
+.dlg-h{display:flex;justify-content:space-between;align-items:center;padding:16px 16px 10px 16px}
+.dlg-h h2{margin:0;font-size:15px;font-weight:400;color:var(--fg)}
+.x{border:none;background:none;font-size:16px;color:var(--muted);width:24px;height:24px;padding:0}
+.x:hover{color:var(--primary)}
+.dlg-b{padding:14px 16px 4px;display:flex;flex-direction:column;gap:14px}
+.dlg-f{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px 16px}
+.dlg-f .r{display:flex;gap:8px;margin-left:auto}
+.row{display:grid;grid-template-columns:64px minmax(0,1fr);column-gap:10px;align-items:start}
+.row>label{text-align:right;line-height:24px;color:var(--label);white-space:nowrap}
+.req{color:var(--danger);margin-right:3px}
+.with-btn{display:flex;gap:6px}
+.with-btn .btn{flex:none;height:24px;padding:0 10px}
+.rules{background:#f7f9fc;border:1px solid #e9edf2;border-radius:2px;padding:8px 10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:4px 16px;margin-top:6px}
+.rule{display:flex;gap:6px;align-items:center;font-size:11px;line-height:16px;color:var(--muted)}
+.rule svg{flex:none}
+.rule.pass{color:var(--ok)}.rule.fail{color:var(--danger)}
+.alert{display:flex;gap:8px;align-items:flex-start;border-radius:2px;padding:8px 12px;line-height:1.7}
+.alert.bad{background:var(--badBg);border:1px solid var(--badLine);color:#a33b3b}
+.alert.warn{background:var(--warnBg);border:1px solid var(--warnLine);color:#7a4500}
+.alert svg{flex:none;margin-top:3px}
+.done{padding:24px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;line-height:1.7}
+.temp{font-family:var(--mono);font-size:16px;letter-spacing:.06em;background:#f5f7fa;border:1px solid var(--line);padding:6px 12px;border-radius:2px;user-select:all}
+.toast{position:fixed;left:50%;top:max(20px,env(safe-area-inset-top,0px));transform:translateX(-50%);background:#edf2fc;color:var(--label);border:1px solid #ebeef5;padding:9px 16px;border-radius:4px;z-index:80;box-shadow:0 2px 12px rgba(0,0,0,.1);max-width:calc(100% - 32px)}
+.toast.ok{background:var(--okBg);color:var(--ok);border-color:#e1f3d8}
+
+/* 原型演示开关（右下角） */
+.demo{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));z-index:70;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.demo-btn{height:30px;padding:0 12px;border-radius:15px;border:1px solid #b3d8ff;background:#ecf5ff;color:#2d7bd0;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.demo-pop{background:var(--card);border:1px solid var(--line);border-radius:4px;box-shadow:0 2px 12px rgba(0,0,0,.15);width:240px;padding:8px 0}
+.demo-pop .tt{padding:4px 14px 6px;color:var(--muted);font-size:11px}
+.demo-pop button{display:block;width:100%;background:none;border:none;text-align:left;padding:7px 14px;font-size:12px;color:var(--fg)}
+.demo-pop button:hover{background:#ecf5ff;color:var(--primary)}
+.demo-pop .pw{padding:8px 14px 4px;border-top:1px solid var(--line);margin-top:4px;color:var(--label);font-size:11px;line-height:1.7}
+.demo-pop code{font-family:var(--mono);background:#f5f7fa;padding:0 4px;user-select:all}
+
+/* 登录（退出后） */
+#login{min-height:100%;display:flex;flex-direction:column;background:radial-gradient(ellipse 55% 60% at 32% 30%,#79c8f2 0%,#4aa6de 35%,#2a84c2 65%,#1f74ae 100%)}
+#login[hidden]{display:none}
+.lg-top{background:#1a5b8e;color:#fff;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;min-height:35px;padding-block:6px;font-size:11px;box-shadow:0 1px 0 rgba(255,255,255,.08)}
+.lg-top .brand{display:flex;align-items:center;gap:6px}
+.lg-top .links{display:flex;gap:16px}
+.lg-top .links a{color:#fff}
+.lg-stage{flex:1;display:flex;align-items:center;justify-content:center;padding-block:40px}
+.lg-card{display:flex;flex-wrap:wrap;width:542px;max-width:100%;min-height:247px;background:#fff;box-shadow:0 2px 10px rgba(0,40,80,.35)}
+.lg-art{flex:0 0 175px;position:relative;background:linear-gradient(135deg,#e8f2fa 0%,#f7fbfe 60%,#dfeaf4 100%);border-right:1px solid #c8d6e3;display:flex;align-items:center;justify-content:center}
+.lg-art::after{content:"";position:absolute;right:-8px;top:28px;width:14px;height:14px;background:#fff;border-left:1px solid #c8d6e3;border-bottom:1px solid #c8d6e3;transform:rotate(45deg)}
+.lg-form{flex:1 1 280px;padding:22px 40px 24px;display:flex;flex-direction:column;gap:14px}
+.lg-form h1{margin:0;color:#e0a75a;font-size:20px;font-weight:700;letter-spacing:.02em;display:flex;align-items:baseline;gap:2px}
+.lg-form h1 small{color:#b8bec6;font-size:11px;font-weight:400;letter-spacing:0}
+.lg-in{position:relative;width:280px;max-width:100%}
+.lg-in svg{position:absolute;left:10px;top:50%;transform:translateY(-50%)}
+.lg-in input{width:100%;height:32px;border:1px solid #a9b9cc;background:#e8f0fe;border-radius:2px;padding:0 10px 0 40px;font-size:12px;font-weight:700;color:#000}
+.lg-in input:focus{outline:none;border-color:#5b9bd5}
+.lg-btn{align-self:flex-start;height:27px;padding:0 13px;border:1px solid #4d8cc6;border-radius:2px;background:linear-gradient(#6ba8dd,#4f92cf);color:#fff;font-size:11px;font-weight:700}
+.lg-btn:hover{background:#4f92cf}
+#lErr{min-height:14px;font-size:12px}
+@media (max-width:640px){nav{flex:1 1 100%}.dlg{width:100%}}
+</style>
+</head>
+<body>
+
+<!-- 后台 -->
+<div id="app">
+  <header class="topbar gut">
+    <div class="t">当前时间: <span class="clock" id="clock"></span></div>
+    <div class="top-r">
+      <button class="exp-chip" id="expChip" hidden></button>
+      <button class="ico" aria-label="全屏"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#cfe2f6" stroke-width="2" aria-hidden="true"><path d="M3 9V3h6M15 3h6v6M21 15v6h-6M9 21H3v-6"/></svg></button>
+      <span class="ico"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>简体中文</span>
+      <div class="user">
+        <button class="ico" id="userBtn" aria-haspopup="true" aria-expanded="false"><svg width="12" height="12" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><circle cx="12" cy="7" r="5"/><path d="M2 23c1-6 5-9 10-9s9 3 10 9z"/></svg><span class="uname">Johnny0626</span> ▾</button>
+        <div class="menu-pop" id="userMenu" hidden>
+          <button id="umChange">修改密码</button>
+          <button id="umLogout">退出登录</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="statbar gut" id="statbar"></div>
+  <div class="banner gut" id="banner" hidden></div>
+  <div class="body">
+    <nav id="nav" aria-label="菜单"></nav>
+    <main>
+      <div class="crumb"><span id="crumb"></span><input aria-label="搜索页面" placeholder="搜索页面..."></div>
+      <div class="page" id="page"></div>
+    </main>
+  </div>
+</div>
+
+<!-- 退出登录后 -->
+<div id="login" hidden>
+  <div class="lg-top gut">
+    <span class="brand"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#6cc04a"/><path d="M10 7l6 5-6 5z" fill="#fff"/></svg>后台管理系统</span>
+    <span class="links"><a>回首页</a><a>帮助</a><a>关于</a></span>
+  </div>
+  <div class="lg-stage gut">
+    <div class="lg-card">
+      <div class="lg-art" aria-hidden="true">
+        <svg width="160" height="175" viewBox="0 0 160 175">
+          <defs>
+            <radialGradient id="gb" cx="38%" cy="32%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset=".35" stop-color="#a9cbe6"/><stop offset=".75" stop-color="#3f77a6"/><stop offset="1" stop-color="#1d4a73"/></radialGradient>
+            <radialGradient id="gs" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#7d93a8" stop-opacity=".45"/><stop offset="1" stop-color="#7d93a8" stop-opacity="0"/></radialGradient>
+          </defs>
+          <ellipse cx="78" cy="150" rx="62" ry="10" fill="url(#gs)"/>
+          <circle cx="72" cy="88" r="62" fill="url(#gb)"/>
+          <g fill="none" stroke="#e9f3fb" stroke-width="1.6" opacity=".85">
+            <path d="M14 78c18 6 38 2 52-6s34-12 66-2"/><path d="M18 112c20-6 40-2 56 6s36 8 56-4"/>
+            <path d="M54 28c-8 20-10 42-4 62s6 42-2 58"/><path d="M96 30c8 18 10 40 4 60s-4 40 6 54"/>
+            <circle cx="54" cy="70" r="5"/><circle cx="98" cy="96" r="5"/><circle cx="40" cy="112" r="4"/><circle cx="104" cy="58" r="4"/>
+          </g>
+          <g fill="#d8e9f6" stroke="#5f8fb8" stroke-width="1">
+            <path d="M18 40l10-6 6 8-4 4 6 6-10 6-4-6-5 3z"/><path d="M8 62l9 2-1 7 6 2-3 9-8-3z"/><path d="M118 26l10 4-2 8 5 3-6 7-8-6z"/><path d="M126 116l9 5-4 7 6 4-7 6-8-8z"/>
+          </g>
+          <path d="M118 22c3-8 9-12 14-10-2 4-1 9 4 12-6 2-12 2-18-2z" fill="#c86a1a" stroke="#4a2a10" stroke-width="1"/>
+          <path d="M122 24c-4-6-4-12-1-16 3 3 6 7 6 13z" fill="#e39a3b" stroke="#4a2a10" stroke-width="1"/>
+          <path d="M108 148c6-10 22-14 36-10 10 3 14 10 10 16-6 6-26 6-40 2-6-2-8-5-6-8z" fill="#cfd6dd" stroke="#6e7883" stroke-width="1.2"/>
+          <path d="M126 140c2 4 2 9 0 14" stroke="#6e7883" stroke-width="1.2" fill="none"/>
+        </svg>
+      </div>
+      <form class="lg-form" id="loginForm" novalidate>
+        <h1>会员登入<small>UserLogin</small></h1>
+        <div class="lg-in">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#a6afba" aria-hidden="true"><circle cx="12" cy="7" r="5"/><path d="M2 23c1-6 5-9 10-9s9 3 10 9z"/></svg>
+          <input id="lUser" value="Johnny0626" aria-label="账号" autocomplete="off">
+        </div>
+        <div class="lg-in">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a6afba" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          <input id="lPwd" type="password" aria-label="密码" autocomplete="off">
+        </div>
+        <button class="lg-btn" type="submit">登录</button>
+        <div class="errtxt" id="lErr"></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="modal"></div>
+<div class="toast" id="toast" hidden></div>
+
+<div class="demo" id="demo">
+  <div class="demo-pop" id="demoPop" hidden></div>
+  <button class="demo-btn" id="demoBtn" aria-expanded="false">原型演示 · 切换账号状态</button>
+</div>
+
+<script>
+(function(){
+var DAY = 864e5;
+var NOW = new Date(2026, 10, 3, 4, 23, 34);
+var clock = new Date(NOW);
+var TEMP = 'Tmp#8842kq';
+var KEYROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm', '1qaz2wsx3edc', '!@#$%^&*()'];
+
+function addDays(d, n){ return new Date(d.getTime() + n * DAY); }
+function p2(n){ return String(n).padStart(2, '0'); }
+function fmt(d){ return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
+function fmtT(d){ return fmt(d) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()); }
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+var policy = { enabled: true, days: 60, remind: 7, history: 3, minDays: 1, minLen: 10, maxLen: 32, kinds: 4,
+  noSeq: true, kick: true, tempHours: 24, legacy: true };
+var DEFAULT_POLICY = JSON.parse(JSON.stringify(policy));
+
+var me = { name: 'Johnny0626', role: '超级管理员', pwd: 'Johnny@2026Q2', history: ['Bbw#Admin2026', 'Zx!9vKq2Mn7p'], changedAt: addDays(NOW, -20), force: null, self: true };
+var accounts = [
+  me,
+  { name: 'admin01', role: '超级管理员', changedAt: addDays(NOW, -12), force: null },
+  { name: 'finance02', role: '财务', changedAt: addDays(NOW, -56), force: null },
+  { name: 'risk03', role: '风控', changedAt: addDays(NOW, -67), force: null },
+  { name: 'cs04', role: '客服', changedAt: addDays(NOW, -210), force: 'legacy' }
+];
+var logs = [
+  { t: '2026-11-02 18:05:11', op: 'admin01', type: '重置密码', target: 'cs04', result: '成功', note: '示例记录' },
+  { t: '2026-11-01 09:12:40', op: 'risk03', type: '修改密码', target: 'risk03', result: '失败', note: '示例记录 · 新密码命中弱口令库' }
+];
+function log(type, target, ok, note){ logs.unshift({ t: fmtT(clock), op: me.name, type: type, target: target, result: ok ? '成功' : '失败', note: note || '' }); }
+
+var view = 'profile';
+var open = { sys: false, log: false };
+var userMenuOpen = false;
+
+/* ---------- 状态计算 ---------- */
+var FORCE_TXT = { first: '待首次修改', reset: '已重置 · 待修改', legacy: '待按新规则修改' };
+function statusOf(a){
+  if (a.force) return { cls: 'info', txt: FORCE_TXT[a.force], forced: true };
+  if (!policy.enabled) return { cls: 'ok', txt: '正常' };
+  var exp = addDays(a.changedAt, policy.days);
+  var left = Math.ceil((exp - clock) / DAY);
+  if (left <= 0) return { cls: 'bad', txt: '已过期', expired: true, left: left, exp: exp };
+  if (left <= policy.remind) return { cls: 'warn', txt: '即将过期 · 剩 ' + left + ' 天', expiring: true, left: left, exp: exp };
+  return { cls: 'ok', txt: '正常', left: left, exp: exp };
+}
+function blockedNow(){ var s = statusOf(me); return !!(s.forced || s.expired); }
+
+/* ---------- 密码规则 ---------- */
+function hasSeq(lower){
+  for (var i = 0; i + 2 < lower.length; i++){
+    var a = lower.charCodeAt(i), b = lower.charCodeAt(i + 1), c = lower.charCodeAt(i + 2);
+    if ((a === b && b === c) || (b - a === 1 && c - b === 1) || (a - b === 1 && b - c === 1)) return true;
+  }
+  for (var r = 0; r < KEYROWS.length; r++) for (var j = 0; j + 3 <= KEYROWS[r].length; j++){
+    var t = KEYROWS[r].slice(j, j + 3);
+    if (lower.indexOf(t) >= 0 || lower.indexOf(t.split('').reverse().join('')) >= 0) return true;
+  }
+  return false;
+}
+function checkPwd(p, old){
+  var lower = p.toLowerCase();
+  var kinds = [/[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(function(re){ return re.test(p); }).length;
+  var recent = [me.pwd].concat(me.history).slice(0, policy.history);
+  var rules = [
+    { label: '长度 ' + policy.minLen + '–' + policy.maxLen + ' 位', ok: p.length >= policy.minLen && p.length <= policy.maxLen },
+    { label: '大写、小写、数字、特殊字符至少 ' + policy.kinds + ' 类', ok: kinds >= policy.kinds }
+  ];
+  if (policy.noSeq) rules.push({ label: '无 3 位重复 / 连续 / 键盘序列（aaa、123、qwe）', ok: !hasSeq(lower) });
+  rules.push({ label: '不能与最近 ' + policy.history + ' 次用过的密码相同', ok: p !== old && recent.indexOf(p) < 0 });
+  return rules;
+}
+var IC = {
+  idle: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#b1b7c0" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="12" r="5"/></svg>',
+  pass: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#67c23a" stroke-width="3" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>',
+  fail: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f56c6c" stroke-width="3" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  lock: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c45656" stroke-width="2.2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+  clock: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b76000" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 7v6l3 2"/></svg>',
+  okBig: '<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#67c23a" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M7 12.5l3.2 3.2L17 9"/></svg>',
+  list: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4f78a3" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M7 8h10M7 12h10M7 16h10"/></svg>',
+  home: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9fb6cc" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5"/></svg>',
+  bell: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
+  weather: '<svg width="26" height="22" viewBox="0 0 26 22" aria-hidden="true"><circle cx="9" cy="8" r="5" fill="#f7c22b"/><path d="M7 20h13a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.3 1.6A3.8 3.8 0 0 0 7 20z" fill="#a9d4f5" stroke="#7fb8e6" stroke-width="1"/></svg>',
+  time: '<svg width="16" height="16" viewBox="0 0 24 24" fill="#fff" stroke="#8a8f99" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l-2 3" fill="none"/></svg>',
+  key: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8a8f99" stroke-width="1.8" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/></svg>'
+};
+
+/* ---------- 通用 ---------- */
+var toastTimer;
+function toast(msg, ok){ var t = $('toast'); t.textContent = msg; t.className = 'toast' + (ok ? ' ok' : ''); t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.hidden = true; }, 2800); }
+function closeModal(){ $('modal').innerHTML = ''; }
+
+/* ---------- 原型演示：切换账号状态 ---------- */
+var SCENES = [
+  ['normal', '正常（剩余 40 天）'], ['expiring', '即将过期（剩余 5 天）'], ['expired', '已过期'],
+  ['first', '新账号首次登录'], ['reset', '被管理员重置过密码'], ['legacy', '新规则上线后的存量账号']
+];
+function renderDemo(){
+  $('demoPop').innerHTML = '<div class="tt">以当前账号状态重新进入后台</div>' +
+    SCENES.map(function(s){ return '<button data-scene="' + s[0] + '">' + s[1] + '</button>'; }).join('') +
+    '<div class="pw">当前密码：<code>' + esc(me.pwd) + '</code><br>修改密码时“旧密码”填这个</div>';
+}
+$('demoBtn').addEventListener('click', function(){ var p = $('demoPop'); p.hidden = !p.hidden; $('demoBtn').setAttribute('aria-expanded', !p.hidden); if (!p.hidden) renderDemo(); });
+$('demoPop').addEventListener('click', function(e){
+  var b = e.target.closest('[data-scene]'); if (!b) return;
+  $('demoPop').hidden = true;
+  applyScene(b.getAttribute('data-scene'));
+  enterApp();
+});
+function applyScene(s){
+  me.force = null;
+  if (me.pwd === TEMP) me.pwd = 'Johnny@2026Q2';
+  if (s === 'normal') me.changedAt = addDays(clock, -20);
+  if (s === 'expiring') me.changedAt = addDays(clock, -(policy.days - 5));
+  if (s === 'expired') me.changedAt = addDays(clock, -(policy.days + 4));
+  if (s === 'first'){ me.force = 'first'; me.pwd = TEMP; me.changedAt = addDays(clock, 0); }
+  if (s === 'reset'){ me.force = 'reset'; me.pwd = TEMP; me.changedAt = addDays(clock, -1); }
+  if (s === 'legacy'){ me.force = 'legacy'; me.changedAt = addDays(clock, -200); }
+}
+function enterApp(){
+  closeModal();
+  $('login').hidden = true; $('app').hidden = false;
+  view = 'profile';
+  renderApp();
+  var st = statusOf(me);
+  if (st.forced || st.expired) openChange(true);
+  else if (st.expiring) openReminder();
+}
+
+/* ---------- 登录（退出后） ---------- */
+$('loginForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  if ($('lUser').value.trim().toLowerCase() !== me.name.toLowerCase() || $('lPwd').value !== me.pwd){
+    $('lErr').style.color = ''; $('lErr').textContent = '账号或密码错误';
+    return;
+  }
+  enterApp();
+});
+function logout(msg){
+  closeModal();
+  $('app').hidden = true; $('login').hidden = false;
+  $('lPwd').value = ''; $('lErr').textContent = msg || '';
+  $('lErr').style.color = msg ? 'var(--ok)' : '';
+}
+
+/* ---------- 框架 ---------- */
+var STATS = [['在线人数', 14, 'n-r'], ['当日注册', 4, 'n-y'], ['实名认证-待处理', 0, 'n-g'], ['当日充值成功', 4, 'n-y'], ['充值', 0, 'b-r'], ['提款', 0, 'b-g'], ['提款超时(>10分)', 10, 'b-r'], ['风控审核', 0, 'b-g'], ['风控超时(>30分)', 0, 'b-r'], ['预算告警', 1, 'b-r']];
+var MENU = ['用户管理', '财务管理', '提现管理', '数据报表', '平台概况', '游戏管理', '公告管理', '充值配置', '日志管理', '活动配置', '代理结算', '系统管理', '五级代汇总报表', '活动中心', '营销管理', '聊天室管理', '前端监控'];
+var BADGE = { '活动配置': 1, '代理结算': 1, '系统管理': 1 };
+var CRUMB = { profile: ['个人中心'], policy: ['系统管理', '密码安全策略'], accounts: ['系统管理', '账号密码状态'], logs: ['日志管理', '密码操作日志'] };
+
+function renderApp(){
+  var blocked = blockedNow();
+  $('statbar').innerHTML = IC.bell + STATS.map(function(s){
+    return '<span>' + s[0] + ':<span class="v ' + s[2] + '">' + (blocked ? '-' : s[1]) + '</span></span>';
+  }).join('');
+  var st = statusOf(me);
+  var chip = $('expChip'), banner = $('banner');
+  if (st.expiring){
+    chip.hidden = false; chip.innerHTML = IC.clock + '密码 ' + st.left + ' 天后过期';
+    banner.hidden = false;
+    banner.innerHTML = IC.clock + '<span>您的登录密码将于 <strong>' + fmt(st.exp) + '</strong> 过期（剩余 ' + st.left + ' 天），过期后需修改密码才能继续使用系统。</span><a data-act="change">立即修改</a>';
+  } else { chip.hidden = true; banner.hidden = true; }
+  renderNav(blocked);
+  $('crumb').innerHTML = '位置' + CRUMB[view].map(function(c){ return '<span class="sep">›</span>' + c; }).join('');
+  renderPage();
+}
+function renderNav(blocked){
+  var h = '<div class="navhead">菜单 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" aria-hidden="true"><path d="M4 6h16M8 12h12M4 18h16"/></svg></div>';
+  h += '<button class="nav-i home' + (view === 'profile' ? ' on' : '') + '" data-nav="profile">' + IC.home + '<span class="lbl">个人中心</span></button>';
+  MENU.forEach(function(m){
+    var key = m === '系统管理' ? 'sys' : m === '日志管理' ? 'log' : 'x';
+    var isOpen = (key === 'sys' && open.sys) || (key === 'log' && open.log);
+    h += '<button class="nav-i" data-nav="' + key + '">' + IC.list + '<span class="lbl">' + m + '</span>' + (BADGE[m] ? '<span class="nav-badge">0</span>' : '') + '<span class="chev">' + (isOpen ? '︿' : '﹀') + '</span></button>';
+    if (key === 'sys' && open.sys) h += '<div class="nav-sub"><button class="nav-i' + (view === 'policy' ? ' on' : '') + '" data-nav="policy"><span class="lbl">密码安全策略</span></button><button class="nav-i' + (view === 'accounts' ? ' on' : '') + '" data-nav="accounts"><span class="lbl">账号密码状态</span></button></div>';
+    if (key === 'log' && open.log) h += '<div class="nav-sub"><button class="nav-i' + (view === 'logs' ? ' on' : '') + '" data-nav="logs"><span class="lbl">密码操作日志</span></button></div>';
+  });
+  var nav = $('nav'); nav.innerHTML = h; nav.classList.toggle('locked', blocked);
+}
+$('nav').addEventListener('click', function(e){
+  var b = e.target.closest('[data-nav]'); if (!b) return;
+  if (blockedNow()){ toast('请先修改密码'); openChange(true); return; }
+  var k = b.getAttribute('data-nav');
+  if (k === 'sys'){ open.sys = !open.sys; renderNav(false); return; }
+  if (k === 'log'){ open.log = !open.log; renderNav(false); return; }
+  if (k === 'x'){ toast('原型只做了密码相关页面：个人中心、系统管理、日志管理'); return; }
+  view = k; renderApp();
+});
+document.addEventListener('click', function(e){
+  var a = e.target.closest('[data-act]');
+  if (a && a.getAttribute('data-act') === 'change') openChange(blockedNow());
+  if (userMenuOpen && !e.target.closest('.user')) setUserMenu(false);
+  if (!$('demoPop').hidden && !e.target.closest('#demo')){ $('demoPop').hidden = true; $('demoBtn').setAttribute('aria-expanded', 'false'); }
+});
+$('expChip').addEventListener('click', function(){ openChange(false); });
+function setUserMenu(v){ userMenuOpen = v; $('userMenu').hidden = !v; $('userBtn').setAttribute('aria-expanded', v); }
+$('userBtn').addEventListener('click', function(){ setUserMenu(!userMenuOpen); });
+$('umChange').addEventListener('click', function(){ setUserMenu(false); openChange(blockedNow()); });
+$('umLogout').addEventListener('click', function(){ setUserMenu(false); logout(); });
+
+/* ---------- 页面 ---------- */
+function renderPage(){
+  var pg = $('page');
+  if (view === 'profile') pg.innerHTML = pageProfile();
+  if (view === 'policy'){ pg.innerHTML = pagePolicy(); bindPolicy(); }
+  if (view === 'accounts') pg.innerHTML = pageAccounts();
+  if (view === 'logs') pg.innerHTML = pageLogs();
+}
+function pageProfile(){
+  var st = statusOf(me), pw;
+  if (st.forced) pw = '<span class="pill info">' + st.txt + '</span>';
+  else if (!policy.enabled) pw = '未启用定期更换';
+  else if (st.expired) pw = '已于 ' + fmt(st.exp) + ' 过期 <span class="pill bad">已过期</span>';
+  else pw = '有效期至 ' + fmt(st.exp) + ' <span class="pill ' + st.cls + '">剩余 ' + st.left + ' 天</span>';
+  return '<div class="welcome">' +
+    '<div class="wl"><span class="ic">' + IC.weather + '</span><b>' + me.name + ' 您好，欢迎使用后台管理系统</b></div>' +
+    '<div class="wl"><span class="ic">' + IC.time + '</span>您上次登录的时间：2026-11-03 03:26:04，上次登录IP：[IP]</div>' +
+    '<div class="wl indent">您当前登录的时间：2026-11-03 03:42:44，当前登录IP：[IP]</div>' +
+    '<div class="wl"><span class="ic">' + IC.key + '</span>密码上次修改：' + fmtT(me.changedAt) + '，' + pw + ' <a data-act="change">修改密码</a></div>' +
+    '</div>';
+}
+function num(id, label, val, unit, hint){
+  return '<div class="frow"><label for="' + id + '">' + label + '</label><div class="unit"><input class="inp" id="' + id + '" type="number" value="' + val + '"><span>' + unit + '</span></div>' + (hint ? '<span class="hint">' + hint + '</span>' : '') + '</div>';
+}
+function chk(id, label, val, hint){
+  return '<label class="chk" for="' + id + '"><input type="checkbox" id="' + id + '"' + (val ? ' checked' : '') + '><span>' + label + (hint ? '<br><span class="hint">' + hint + '</span>' : '') + '</span></label>';
+}
+function pagePolicy(){
+  return '<form class="panel" id="polForm" novalidate><div class="panel-h">密码安全策略<span class="pill ' + (policy.enabled ? 'ok' : 'bad') + '">' + (policy.enabled ? '已启用' : '已停用') + '</span></div>' +
+    '<div class="panel-b"><div class="form-grid">' +
+    '<div class="sec-t">定期更换</div>' +
+    '<div class="frow">' + chk('pEnabled', '启用密码定期更换', policy.enabled, '停用后不再提醒和强制修改，复杂度规则仍生效') + '</div>' +
+    num('pDays', '密码有效期', policy.days, '天', '30–365 天，到期后登录必须修改') +
+    num('pRemind', '到期前提醒', policy.remind, '天', '这段时间内每次登录都会提醒') +
+    num('pMin', '最短使用期', policy.minDays, '天', '0–7 天，防止连续修改绕过历史限制；0 表示不限制') +
+    num('pTemp', '临时密码有效期', policy.tempHours, '小时', '管理员重置后生成的临时密码') +
+    '<div class="frow">' + chk('pLegacy', '存量账号首次登录强制修改', policy.legacy, '规则上线后，已有账号第一次登录须按新规则改一次') + chk('pKick', '改密后退出该账号的其他登录', policy.kick) + '</div>' +
+    '<div class="sec-t">复杂度（禁止弱口令）</div>' +
+    num('pMinLen', '最小长度', policy.minLen, '位', '8–32') +
+    num('pMaxLen', '最大长度', policy.maxLen, '位', '不小于最小长度，最多 64') +
+    '<div class="frow"><span class="lab">字符种类</span><div class="radios">' +
+      [2, 3, 4].map(function(k){ return '<label><input type="radio" name="pKinds" value="' + k + '"' + (policy.kinds === k ? ' checked' : '') + '>至少 ' + k + ' 类</label>'; }).join('') +
+      '</div><span class="hint">大写、小写、数字、特殊字符</span></div>' +
+    num('pHist', '历史密码不可重复', policy.history, '次', '1–24 次（含当前密码）') +
+    '<div class="frow">' + chk('pNoSeq', '禁止 3 位以上重复、连续或键盘序列', policy.noSeq, '如 aaa、123、cba、qwe、1qaz') + '</div>' +
+    '</div></div>' +
+    '<div class="form-foot"><button class="btn pri" type="submit">保 存</button><button class="btn" type="button" id="polReset">恢复默认</button><span class="errtxt" id="polErr"></span></div></form>';
+}
+function bindPolicy(){
+  $('polForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    function v(id){ return parseInt($(id).value, 10); }
+    var np = { enabled: $('pEnabled').checked, days: v('pDays'), remind: v('pRemind'), minDays: v('pMin'), tempHours: v('pTemp'),
+      legacy: $('pLegacy').checked, kick: $('pKick').checked, minLen: v('pMinLen'), maxLen: v('pMaxLen'),
+      kinds: parseInt(document.querySelector('input[name=pKinds]:checked').value, 10), history: v('pHist'),
+      noSeq: $('pNoSeq').checked };
+    var err = '';
+    if (!(np.days >= 30 && np.days <= 365)) err = '密码有效期需在 30–365 天之间';
+    else if (!(np.remind >= 1 && np.remind < np.days)) err = '到期前提醒需至少 1 天，且小于有效期';
+    else if (!(np.minDays >= 0 && np.minDays <= 7)) err = '最短使用期需在 0–7 天之间';
+    else if (!(np.tempHours >= 1 && np.tempHours <= 72)) err = '临时密码有效期需在 1–72 小时之间';
+    else if (!(np.minLen >= 8 && np.minLen <= 32)) err = '最小长度需在 8–32 位之间';
+    else if (!(np.maxLen >= np.minLen && np.maxLen <= 64)) err = '最大长度需不小于最小长度，且不超过 64 位';
+    else if (!(np.history >= 1 && np.history <= 24)) err = '历史密码次数需在 1–24 之间';
+    if (err){ $('polErr').textContent = err; return; }
+    Object.assign(policy, np);
+    log('修改密码策略', '系统', true, '有效期 ' + policy.days + ' 天 · 最小长度 ' + policy.minLen + ' · 至少 ' + policy.kinds + ' 类');
+    toast('保存成功，策略立即生效', true);
+    renderApp();
+  });
+  $('polReset').addEventListener('click', function(){ Object.assign(policy, JSON.parse(JSON.stringify(DEFAULT_POLICY))); renderPage(); toast('已恢复默认值，点保存后生效'); });
+}
+function pageAccounts(){
+  var rows = accounts.map(function(a, i){
+    var st = statusOf(a);
+    return '<tr><td>' + esc(a.name) + (a.self ? ' <span style="color:var(--muted)">（我）</span>' : '') + '</td><td>' + a.role + '</td><td>' + fmtT(a.changedAt) + '</td><td>' + (st.exp && !st.forced ? fmt(st.exp) : '—') + '</td><td><span class="pill ' + st.cls + '">' + st.txt + '</span></td><td><button class="btn sm danger" data-reset="' + i + '">重置密码</button></td></tr>';
+  }).join('');
+  var cnt = { exp: 0, soon: 0, f: 0 };
+  accounts.forEach(function(a){ var s = statusOf(a); if (s.expired) cnt.exp++; if (s.expiring) cnt.soon++; if (s.forced) cnt.f++; });
+  return '<div class="panel"><div class="panel-h">账号密码状态<span style="font-weight:400;color:var(--muted)">已过期 ' + cnt.exp + ' · 即将过期 ' + cnt.soon + ' · 待修改 ' + cnt.f + '（除本人外为示例账号）</span></div>' +
+    '<div class="tbl-wrap"><table><thead><tr><th>账号</th><th>角色</th><th>上次修改</th><th>到期日</th><th>状态</th><th>操作</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+}
+$('page').addEventListener('click', function(e){
+  var b = e.target.closest('[data-reset]'); if (!b) return;
+  openResetConfirm(accounts[+b.getAttribute('data-reset')]);
+});
+function pageLogs(){
+  var body = logs.length ? '<div class="tbl-wrap"><table><thead><tr><th>时间</th><th>操作人</th><th>事件</th><th>对象</th><th>结果</th><th>说明</th></tr></thead><tbody>' +
+    logs.map(function(l){ return '<tr><td>' + l.t + '</td><td>' + esc(l.op) + '</td><td>' + l.type + '</td><td>' + esc(l.target) + '</td><td><span class="pill ' + (l.result === '成功' ? 'ok' : 'bad') + '">' + l.result + '</span></td><td class="wrap">' + esc(l.note) + '</td></tr>'; }).join('') +
+    '</tbody></table></div>' : '<div class="empty">暂无记录。修改或重置密码后会出现在这里。</div>';
+  return '<div class="panel"><div class="panel-h">密码操作日志<span style="font-weight:400;color:var(--muted)">不记录任何明文密码</span></div>' + body + '</div>';
+}
+
+/* ---------- 弹窗：到期提醒 ---------- */
+function openReminder(){
+  var st = statusOf(me);
+  $('modal').innerHTML = '<div class="mask"><div class="dlg sm" role="dialog" aria-labelledby="rT"><div class="dlg-h"><h2 id="rT">密码即将过期</h2><button class="x" aria-label="关闭" id="rX">✕</button></div>' +
+    '<div class="dlg-b"><div class="alert warn">' + IC.clock + '<div>您的密码将于 <strong>' + fmt(st.exp) + '</strong> 过期，剩余 <strong>' + st.left + ' 天</strong>。<br>后台密码每 ' + policy.days + ' 天必须更换一次，过期后登录将被强制要求修改。</div></div></div>' +
+    '<div class="dlg-f"><div class="r"><button class="btn" id="rLater">稍后提醒</button><button class="btn pri" id="rNow">立即修改</button></div></div></div></div>';
+  $('rX').onclick = $('rLater').onclick = closeModal;
+  $('rNow').onclick = function(){ openChange(false); };
+}
+
+/* ---------- 弹窗：修改密码 ---------- */
+var REASONS = {
+  expired: { t: '密码已过期，请修改密码', d: function(){ return '您的密码已于 ' + fmt(addDays(me.changedAt, policy.days)) + ' 过期（有效期 ' + policy.days + ' 天），修改完成前无法使用系统的其他功能。'; }, old: '旧密码' },
+  first: { t: '首次登录，请修改密码', d: function(){ return '这是您的首次登录，请把初始密码改成只有您自己知道的密码，修改完成前无法使用系统的其他功能。'; }, old: '初始密码' },
+  reset: { t: '密码已被重置，请修改密码', d: function(){ return '您的密码已被管理员重置，临时密码 ' + policy.tempHours + ' 小时内有效，请立即设置新密码。'; }, old: '临时密码' },
+  legacy: { t: '密码规则已升级，请修改密码', d: function(){ return '系统启用了新的密码安全规则，所有账号需按新规则重新设置一次密码。'; }, old: '旧密码' }
+};
+function openChange(forced){
+  if (!forced && policy.minDays > 0 && (clock - me.changedAt) < policy.minDays * DAY){
+    toast('密码已于 ' + fmtT(me.changedAt) + ' 修改，' + policy.minDays + ' 天内不能再次修改（可在“密码安全策略”调整最短使用期）');
+    return;
+  }
+  var R = REASONS[me.force || 'expired'];
+  var oldLabel = forced ? R.old : '旧密码';
+  var head = '<div class="dlg-h"><h2 id="cT">' + (forced ? R.t : '修改密码') + '</h2>' + (forced ? '' : '<button class="x" type="button" aria-label="关闭" id="cX">✕</button>') + '</div>' +
+    (forced ? '<div style="padding:4px 16px 0"><div class="alert bad">' + IC.lock + '<span>' + R.d() + '</span></div></div>' : '');
+  $('modal').innerHTML = '<div class="mask' + (forced ? ' lock' : '') + '"><form class="dlg" role="dialog" aria-labelledby="cT" id="cForm" novalidate>' + head +
+    '<div id="cBody"><div class="dlg-b">' +
+      '<div class="row"><label for="cOld"><span class="req">*</span>' + oldLabel + '</label><div><input class="inp" id="cOld" type="password" autocomplete="off"><div class="errtxt" id="eOld"></div><div class="hint">原型提示：当前' + oldLabel + '为 <code style="font-family:var(--mono);background:#f5f7fa;padding:0 4px;user-select:all">' + esc(me.pwd) + '</code></div></div></div>' +
+      '<div class="row"><label for="cNew"><span class="req">*</span>新密码</label><div><div class="with-btn"><input class="inp" id="cNew" type="password" autocomplete="off"><button class="btn" type="button" id="cShow">显示</button></div><div class="errtxt" id="eNew"></div><div class="rules" id="cRules"></div></div></div>' +
+      '<div class="row"><label for="cCf"><span class="req">*</span>确认密码</label><div><input class="inp" id="cCf" type="password" autocomplete="off"><div class="errtxt" id="eCf"></div></div></div>' +
+    '</div><div class="dlg-f">' +
+      (forced ? '<a id="cOut">退出登录</a>' : '') +
+      '<div class="r">' + (forced ? '' : '<button class="btn" type="button" id="cCancel">取 消</button>') + '<button class="btn pri" type="submit" id="cOk">确 定</button></div>' +
+    '</div></div></form></div>';
+
+  var tried = false, shown = false;
+  function upd(){
+    var np = $('cNew').value, old = $('cOld').value, cf = $('cCf').value;
+    var rules = checkPwd(np, old);
+    var allOk = np.length > 0 && rules.every(function(r){ return r.ok; });
+    $('cRules').innerHTML = rules.map(function(r){
+      var s = !np ? 'idle' : (r.ok ? 'pass' : 'fail');
+      return '<div class="rule ' + s + '">' + IC[s] + '<span>' + r.label + '</span></div>';
+    }).join('');
+    var newErr = tried && !np ? '请输入新密码' : (np && !allOk && tried ? '新密码不符合规则，请按下方提示修改' : '');
+    $('eNew').textContent = newErr;
+    $('cNew').classList.toggle('err', !!newErr || (!!np && !allOk));
+    var cfErr = cf && cf !== np ? '两次输入的密码不一致' : (tried && !cf ? '请再次输入新密码' : '');
+    $('eCf').textContent = cfErr; $('cCf').classList.toggle('err', !!cfErr);
+    if (tried && !old){ $('eOld').textContent = '请输入' + oldLabel; $('cOld').classList.add('err'); }
+    return { allOk: allOk, rules: rules, ready: !!old && allOk && cf === np };
+  }
+  ['cOld', 'cNew', 'cCf'].forEach(function(id){ $(id).addEventListener('input', function(){ if (id === 'cOld'){ $('eOld').textContent = ''; $('cOld').classList.remove('err'); } upd(); }); });
+  $('cShow').onclick = function(){ shown = !shown; $('cNew').type = $('cCf').type = shown ? 'text' : 'password'; $('cShow').textContent = shown ? '隐藏' : '显示'; };
+  if (!forced){ $('cX').onclick = $('cCancel').onclick = closeModal; }
+  else $('cOut').onclick = function(){ logout(); };
+  $('cForm').addEventListener('submit', function(e){
+    e.preventDefault(); tried = true;
+    var r = upd(), old = $('cOld').value, np = $('cNew').value;
+    if (!r.ready){
+      if (np && !r.allOk) log('修改密码', me.name, false, '新密码不符合规则：' + r.rules.filter(function(x){ return !x.ok; }).map(function(x){ return x.label; }).join('；'));
+      return;
+    }
+    if (old !== me.pwd){
+      $('eOld').textContent = oldLabel + '不正确'; $('cOld').classList.add('err');
+      log('修改密码', me.name, false, oldLabel + '不正确');
+      return;
+    }
+    me.history.unshift(me.pwd); me.history = me.history.slice(0, 24);
+    me.pwd = np; me.changedAt = new Date(clock); me.force = null;
+    log(forced ? '强制修改密码' : '修改密码', me.name, true, forced ? R.t : '');
+    var exp = policy.enabled ? fmt(addDays(clock, policy.days)) : '—';
+    $('cBody').innerHTML = '<div class="done">' + IC.okBig + '<div style="font-size:14px;font-weight:700">密码修改成功，需重新登录</div><div style="color:var(--label)">新密码有效期至 ' + exp + '（' + policy.days + ' 天）。<br>当前登录已失效' +
+      (policy.kick ? '，其他设备上的登录也已全部退出' : '') + '，<span id="cCount">3</span> 秒后自动退出，请使用新密码重新登录。</div>' +
+      '<button class="btn pri" type="button" id="cDone">立即重新登录</button></div>';
+    var x = $('cX'); if (x) x.remove();
+    var out = $('cOut'); if (out) out.remove();
+    var n = 3;
+    var timer = setInterval(function(){
+      n--;
+      var c = $('cCount');
+      if (!c){ clearInterval(timer); return; }
+      if (n <= 0){ clearInterval(timer); logout('密码已修改，请用新密码登录'); return; }
+      c.textContent = n;
+    }, 1000);
+    $('cDone').onclick = function(){ clearInterval(timer); logout('密码已修改，请用新密码登录'); };
+  });
+  upd();
+  $('cOld').focus();
+}
+
+/* ---------- 弹窗：管理员重置 ---------- */
+function genTemp(){
+  var cs = 'ABCDEFGHJKMNPQRSTUVWXYZ', ds = '23456789', sp = '#!%*';
+  function pick(s){ return s[Math.floor(Math.random() * s.length)]; }
+  return pick(cs) + pick(cs).toLowerCase() + pick(sp) + pick(ds) + pick(cs) + pick(cs).toLowerCase() + pick(ds) + pick(sp) + pick(cs) + pick(ds);
+}
+function openResetConfirm(a){
+  $('modal').innerHTML = '<div class="mask"><div class="dlg sm" role="dialog" aria-labelledby="xT"><div class="dlg-h"><h2 id="xT">重置密码</h2><button class="x" aria-label="关闭" id="xX">✕</button></div>' +
+    '<div class="dlg-b"><div class="alert warn">' + IC.clock + '<div>确定重置 <strong>' + esc(a.name) + '</strong> 的密码？<br>系统会生成临时密码（' + policy.tempHours + ' 小时内有效），该账号下次登录必须修改密码，并立即退出其所有登录。</div></div></div>' +
+    '<div class="dlg-f"><div class="r"><button class="btn" id="xNo">取 消</button><button class="btn pri" id="xYes">确 定</button></div></div></div></div>';
+  $('xX').onclick = $('xNo').onclick = closeModal;
+  $('xYes').onclick = function(){
+    var temp = genTemp();
+    a.force = 'reset'; a.changedAt = new Date(clock);
+    if (a.self){ me.history.unshift(me.pwd); me.pwd = temp; }
+    log('重置密码', a.name, true, '生成临时密码，' + policy.tempHours + ' 小时内有效');
+    $('modal').innerHTML = '<div class="mask"><div class="dlg sm" role="dialog" aria-labelledby="yT"><div class="dlg-h"><h2 id="yT">已重置 ' + esc(a.name) + ' 的密码</h2></div>' +
+      '<div class="done" style="padding-top:8px"><div>临时密码（只显示这一次，请通过安全渠道告知本人）</div><div class="temp" id="tmpPwd">' + temp + '</div>' +
+      '<div style="color:var(--muted)">' + policy.tempHours + ' 小时内有效 · 首次登录必须修改</div>' +
+      '<div style="display:flex;gap:8px"><button class="btn" id="yCopy">复制</button><button class="btn pri" id="yOk">确 定</button></div></div></div></div>';
+    $('yCopy').onclick = function(){
+      try { navigator.clipboard.writeText(temp).then(function(){ toast('已复制', true); }, selTemp); } catch (err){ selTemp(); }
+    };
+    $('yOk').onclick = function(){
+      closeModal();
+      if (a.self){ logout('您的密码已被重置，请用临时密码登录'); return; }
+      renderApp();
+    };
+  };
+}
+function selTemp(){ var r = document.createRange(); r.selectNodeContents($('tmpPwd')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('已选中，请按 Ctrl/⌘+C 复制'); }
+
+/* ---------- 时钟 & 启动 ---------- */
+function tick(){ $('clock').textContent = fmtT(clock).replace(/-/g, '/') + ' -04:00'; }
+setInterval(function(){ clock = new Date(clock.getTime() + 1000); tick(); }, 1000);
+tick();
+renderApp();
+})();
+</script>
+</body>
+</html>
