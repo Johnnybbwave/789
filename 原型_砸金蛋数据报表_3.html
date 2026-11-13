@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>砸金蛋数据报表 原型</title>
+<style>span,a,th{white-space:nowrap}body{margin:0;background:#f0f2f5;font-family:-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif;color:#333}a{color:#1677ff;text-decoration:none}</style>
+</head><body><div id="app"></div>
+<script>
+const f = n => (n < 0 ? '-₱' : '₱') + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pos = '#389e0d', neg = '#cf1322';
+const raw0 = [
+  ['789Bingo-official',31,'Cumulative Wagering',0,0,0,260,1,'2026-10-15 17:08','4/5'],
+  ['Player5vqx41380',7,'Make Another Deposit',20,100,135.5,20,1,'2026-10-15 16:12','1/6'],
+  ['Playerh7brp2113',13,'Complete Registration & KYC · First Deposit Reward · Make Another Deposit · Place Your First Bet · Cumulative Wagering',0,0,0,456.27,1,'2026-10-15 10:51','10/10'],
+  ['Playerdfqpr2112',0,'Complete Registration & KYC · First Deposit Reward · Make Another Deposit',10,50,18.4,52.02,1,'2026-10-15 10:42','3/10'],
+  ['Playerx6jc70101',11,'Cumulative Wagering',0,0,0,360,1,'2026-10-14 18:05','5/9'],
+  ['Player23a5z2106',5,'Complete Registration & KYC · First Deposit Reward · Make Another Deposit · Place Your First Bet · Cumulative Wagering',30,150,92.1,454.63,1,'2026-10-14 18:04','10/12'],
+  ['Playercpfci0402',0,'First Deposit Reward',0,0,0,0,0,'-','1/10'],
+  ['Playerm87i30401',0,'First Deposit Reward',0,0,0,0,0,'-','1/10'],
+];
+const KYC='Complete Registration & KYC', FDR='First Deposit Reward', MAD='Make Another Deposit', CW='Cumulative Wagering', FB='Place Your First Bet';
+const byTask = {
+  '789Bingo-official': [[CW,'',0,0,0,260]],
+  Player5vqx41380: [[MAD,'PG Soft',20,100,135.5,20]],
+  Playerh7brp2113: [[KYC,'',0,0,0,50],[FDR,'',0,0,0,150],[MAD,'',0,0,0,100],[FB,'',0,0,0,56.27],[CW,'',0,0,0,100]],
+  Playerdfqpr2112: [[KYC,'',0,0,0,20],[FDR,'',0,0,0,22.02],[MAD,'PG Soft',10,50,18.4,10]],
+  Playerx6jc70101: [[CW,'',0,0,0,360]],
+  Player23a5z2106: [[KYC,'',0,0,0,50],[FDR,'JILI',10,50,22.1,150],[MAD,'PG Soft',20,100,70,100],[FB,'',0,0,0,54.63],[CW,'',0,0,0,100]],
+  Playercpfci0402: [[FDR,'',0,0,0,0]], Playerm87i30401: [[FDR,'',0,0,0,0]],
+};
+const vendorList = ['PG Soft','JILI','Pragmatic Play','FA CHAI'];
+const state = { task: '', vendor: '', closed: {} };
+function render() {
+const build = (tf, vf) => raw0.map(r => { const recs = (byTask[r[0]] || []).filter(p => !tf || p[0] === tf); const fs = recs.filter(p => p[1] && (!vf || p[1] === vf)); const sum = (a, i) => a.reduce((s, p) => s + p[i], 0);
+  return [...r.slice(0,3), sum(fs,2), sum(fs,3), sum(fs,4), sum(recs,5), ...r.slice(7), recs.length > 0 && (!vf || fs.length > 0), recs.length > 0]; });
+const raw = build(state.task, state.vendor);
+const rows = build('', '').map(([id,vip,task,spins,bet,pay,bonus,cl,time,rate,hit]) => { const net = bet - pay;
+  return { id, vip, task, hit, fs: spins ? `${spins} 转 / ${f(bet)}` : '—', payout: spins ? f(pay) : '—', net: spins ? (net > 0 ? '+' : '') + f(net) : '—', netColor: net > 0 ? pos : net < 0 ? neg : '#333',
+    bonus: bonus ? f(bonus) : '—', claim: cl ? '已领取' : '未领取', tagB: cl ? '#b7eb8f' : '#d9d9d9', tagC: cl ? '#389e0d' : '#888', tagBg: cl ? '#f6ffed' : '#fafafa', time, rate }; });
+const claimed = raw.filter(r => r[7] && r[11]);
+const bonusClaimed = claimed.reduce((s, r) => s + r[6], 0);
+const filtered = !!(state.task || state.vendor);
+const shown = rows;
+const spins = claimed.reduce((s, r) => s + r[3], 0), bet = claimed.reduce((s, r) => s + r[4], 0), pay = claimed.reduce((s, r) => s + r[5], 0), net = bet - pay;
+const B='#3b8ff0',T='#19b5a5',O='#f0a030',P='#8a63d2',R='#e5534b';
+const c = (label, value, sub, bar, extra = {}) => ({ label, value, sub, bar, color: '#222', ...extra });
+const cards = [
+  c('完成人数','23','按用户ID去重',B), c('领取人数', String(claimed.length), filtered ? '筛选范围内' : '领取率26.1%',T), c('符合发放奖励','₱4,589.76','Bonus + Freespins',O), c('实际领取奖励', f(bonusClaimed + bet),'Bonus + Freespins',P),
+  c('符合发放Bonus金额','4,589.76','达标锁定金额',O), c('实际领取Bonus金额', f(bonusClaimed).slice(1), state.vendor ? '不受厂商筛选影响' : '实际入账彩金',T), c('符合发放Freespins价值', f(bet).slice(1),`${spins} 转`,P), c('实际领取Freespins价值', f(bet).slice(1),`${spins} 转`,P),
+  c('总预算','₱11,000.00','含各任务划拨',B), c('已使用预算','₱4,589.76','按符合发放金额统计 · 消耗比例41.7%',R),
+  c('Freespins产生Payout', f(pay), '&nbsp;', O),
+  c('Freespins净输赢（投注 − Payout）', (net > 0 ? '+' : '') + f(net), `免费转投注 ${f(bet)} − Payout ${f(pay)}`, net < 0 ? R : T, { color: net > 0 ? pos : net < 0 ? neg : '#222' }),
+];
+const menu = ['老用户充值转盘','绑定手机号码活动','KYC认证送彩金活动','登录送彩金活动','充值活动','消费活动','盈利活动','抽奖活动','每日首充活动','新用户转盘活动','新用户首充活动','邀请好友活动','签到活动'];
+const alerts = [
+  { type: '签到活动', name: '签到送彩金（8月常规）', p: 72 },
+  { type: '充值活动', name: '新用户首充翻倍', p: 78 },
+  { type: '抽奖活动', name: '幸运大转盘（周末场）', p: 74 },
+  { type: '砸金蛋活动', name: '砸金蛋彩金活动_新用户', task: 'First Deposit Reward', p: 92 },
+  { type: '砸金蛋活动', name: '砸金蛋彩金活动_新用户', task: 'Complete Registration & KYC', p: 76 },
+].map((a,k) => ({...a,k})).filter(a => a.p >= 70 && !state.closed[a.k]);
+window.__alerts = alerts;
+const tasks = ['Complete Registration & KYC','First Deposit Reward','Make Another Deposit','Cumulative Wagering','Place Your First Bet'];
+const td = 'padding:10px;border:1px solid #eee', th = 'padding:9px;border:1px solid #eee';
+document.getElementById('app').innerHTML = `
+<div style="min-height:100vh;display:flex;flex-direction:column;font-size:12px">
+  <div style="background:#2b72b8;color:#fff;min-height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-weight:600">
+    <div>当前时间: <span style="color:#ffd54a">2026/10/21 05:30:35 -04:00</span></div>
+    <div style="display:flex;gap:18px"><span>简体中文</span><span>Johnny123 ▾</span></div></div>
+  <div style="background:#2f80c9;color:#fff;min-height:32px;display:flex;align-items:center;gap:6px 18px;padding:6px 14px;font-weight:600;flex-wrap:wrap">
+    <span>在线人数: <span style="color:#ffd54a">12</span></span><span>当日注册: <span style="color:#ffd54a">5</span></span><span>当日充值成功: <span style="color:#ffd54a">4</span></span><span>提款超时(&gt;10分): <span style="background:#e5484d;padding:1px 8px;border-radius:2px">1</span></span><span>预算告警: <span style="background:#e5484d;padding:1px 8px;border-radius:2px">${alerts.length}</span></span></div>
+  ${alerts.length ? `<div style="background:#fffbe6;border-bottom:1px solid #ffe58f;padding:6px 14px;display:flex;align-items:center;gap:10px">
+    <span style="color:#d46b08;font-weight:600">⚠ 预算消耗告警</span><span style="color:#666">以下活动消耗已达预算 70%：</span>
+    <div style="display:flex;flex-wrap:wrap;gap:6px 14px;flex:1;min-width:0">
+    ${alerts.map(a => `<span style="display:flex;align-items:center;gap:6px"><span style="background:#faad14;color:#3a2a00;padding:1px 6px;border-radius:2px;font-weight:600">${a.type}</span><span>${a.name}</span>${a.task ? `<span style="color:#8c6d1f">· 任务：${a.task}</span>` : ''}<span style="color:${a.p >= 90 ? '#cf1322' : '#d46b08'};font-weight:600">${a.p}%</span><button aria-label="关闭" onclick="state.closed[${a.k}]=1;render()" style="border:0;background:none;color:#999;cursor:pointer;padding:0 2px">×</button></span>`).join('')}
+    </div><a href="#" onclick="alerts_all();return false">全部关闭</a></div>` : ''}
+  <div style="display:flex;flex:1">
+    <div style="width:150px;background:#eef4fa;border-right:1px solid #dde6ef;flex-shrink:0">
+      <div style="background:#5aa0dc;color:#fff;padding:10px 14px;font-weight:700">菜单 ☰</div>
+      <div style="padding:10px 14px;font-weight:600;border-bottom:1px solid #dde6ef">活动中心 ▴</div>
+      ${menu.map(m => `<div style="padding:9px 14px 9px 22px">▸ ${m}</div>`).join('')}
+      <div style="padding:9px 14px 9px 22px;color:#1677ff;font-weight:600;background:#dcebf8">▸ 砸金蛋送彩金活动</div></div>
+    <div style="flex:1;min-width:0;padding:10px"><div style="background:#fff;padding:16px;border-radius:2px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><a href="#">‹ 返回活动列表</a><span style="font-weight:600;font-size:13px">砸金蛋彩金活动_新用户</span><span style="color:#52c41a">● 进行中</span></div>
+      <div style="display:flex;border-bottom:1px solid #e5e5e5;margin-bottom:16px;white-space:nowrap">
+        <div style="padding:8px 14px;border:1px solid #e5e5e5;border-bottom:none">活动配置</div><div style="padding:8px 14px;border:1px solid #e5e5e5;border-bottom:none;border-left:none">任务配置</div><div style="padding:8px 14px;border:1px solid #e5e5e5;border-bottom:none;border-left:none">奖励与库存</div><div style="padding:8px 14px;border:1px solid #e5e5e5;border-bottom:1px solid #fff;border-left:none;color:#1677ff;margin-bottom:-1px">数据报表</div></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <span style="margin-right:6px">时间范围</span><span style="border:1px solid #d9d9d9;padding:5px 12px">今日</span><span style="border:1px solid #d9d9d9;padding:5px 12px">近7天</span><span style="border:1px solid #d9d9d9;padding:5px 12px">近30天</span><span style="background:#1677ff;color:#fff;padding:5px 12px">活动全程</span>
+        <span style="margin-left:6px">自定义</span><span style="border:1px solid #d9d9d9;padding:5px 10px">2026-10-01</span>~<span style="border:1px solid #d9d9d9;padding:5px 10px">2026-10-21</span>
+        <div style="display:flex;align-items:center;gap:8px;margin-left:10px"><span>任务</span><select onchange="state.task=this.value;render()" style="border:1px solid #d9d9d9;padding:4px 8px;font-size:12px;min-width:200px;height:26px;background:#fff"><option value="">全部任务</option>${tasks.map(t=>`<option ${state.task===t?"selected":""}>${t}</option>`).join('')}</select><span style="margin-left:6px">Freespins厂商</span><select onchange="state.vendor=this.value;render()" style="border:1px solid #d9d9d9;padding:4px 8px;font-size:12px;min-width:140px;height:26px;background:#fff"><option value="">全部厂商</option>${vendorList.map(v=>`<option ${state.vendor===v?"selected":""}>${v}</option>`).join('')}</select><span style="background:#1677ff;color:#fff;padding:5px 12px">查询</span></div></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:16px">
+        ${cards.map(c => `<div style="border:1px solid #eee;border-top:2px solid ${c.bar};border-radius:4px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,.04);background:#fff"><div style="color:#666;font-size:11px">${c.label}</div><div style="font-size:20px;font-weight:600;margin:8px 0 6px;color:${c.color}">${c.value}</div><div style="color:#888;font-size:11px">${c.sub}</div></div>`).join('')}</div>
+      <div style="border:1px solid #eee;border-radius:4px;padding:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="border-left:3px solid #1677ff;padding-left:8px;font-weight:600">参与用户明细 · 点击「详情」查看任务完成情况</div>
+          <div style="display:flex;gap:8px;align-items:center">是否领取 <span style="border:1px solid #d9d9d9;padding:4px 30px 4px 10px">全部</span><span style="border:1px solid #d9d9d9;padding:4px 60px 4px 10px;color:#aaa">搜索玩家ID</span></div></div>
+        <table style="width:100%;border-collapse:collapse;text-align:center;font-size:11px;white-space:nowrap"><thead><tr style="background:#fafafa">
+          <th style="${th}">玩家ID</th><th style="${th}">VIP</th><th style="${th}">命中任务</th><th style="${th}">发放Freespins</th><th style="${th};background:#fff7f0">Freespins Payout</th><th style="${th};background:#fff7f0">FS净输赢</th><th style="${th}">发放Bonus</th><th style="${th}">是否领取</th><th style="${th}">领取时间</th><th style="${th}">任务完成率</th><th style="${th}">操作</th></tr></thead><tbody>
+          ${shown.map(r => `<tr><td style="${td}">${r.id}</td><td style="${td}">${r.vip}</td><td style="${td};white-space:normal;min-width:240px;line-height:1.6">${r.task}</td><td style="${td}">${r.fs}</td><td style="${td}">${r.payout}</td><td style="${td};color:${r.netColor};font-weight:600">${r.net}</td><td style="${td}">${r.bonus}</td><td style="${td}"><span style="padding:1px 6px;border:1px solid ${r.tagB};color:${r.tagC};background:${r.tagBg}">${r.claim}</span></td><td style="${td}">${r.time}</td><td style="${td}">${r.rate}</td><td style="${td}"><a href="#">详情 ›</a></td></tr>`).join('')}
+        </tbody></table>
+        <div style="color:#999;font-size:11px;margin-top:10px">FS净输赢 = 免费转投注额 − Freespins Payout（平台视角：正值为平台赢，负值为平台输）</div></div>
+    </div></div></div></div>`;
+}
+function alerts_all(){ for (let k=0;k<10;k++) state.closed[k]=1; render(); }
+render();
+</script></body></html>
