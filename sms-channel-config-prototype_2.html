@@ -191,7 +191,7 @@ let pendingAccDel = null; // 'globe:1'
 
 function opHtml(key, name, color) {
   const d = draft[key];
-  const on = true, single = d.mode === 'single';
+  const on = true, single = false; // 只保留并发：所有已开启的账号一起发送
   if (d.single >= d.accounts.length) d.single = 0;
   const isOn = a => a.enabled !== false;
   const onCount = d.accounts.filter(isOn).length;
@@ -211,12 +211,6 @@ function opHtml(key, name, color) {
   return `<section data-sec="${key}" class="${on ? '' : 'disabled'}">
     <div class="op-head">
       <p class="op"><i style="background:${color}"></i>${name}</p>
-      <div class="mode">
-        <span>发送方式</span>
-        <label><input type="radio" name="mode-${key}" value="concurrent" data-op="${key}" data-mode${single ? '' : ' checked'}${on ? '' : ' disabled'}> 并发</label>
-        <label><input type="radio" name="mode-${key}" value="single" data-op="${key}" data-mode${single ? ' checked' : ''}${on ? '' : ' disabled'}> 指定账号</label>
-        ${single ? `<select class="inp" data-op="${key}" data-single${on ? '' : ' disabled'}>${accOpts}</select>` : ''}
-      </div>
     </div>
     ${hint ? `<div class="hint" style="margin:0 0 8px;color:#e6a23c">${hint}</div>` : '<div style="height:6px"></div>'}
     <div class="tbox"><table class="list acc">
