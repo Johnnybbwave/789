@@ -26,7 +26,7 @@ const byTask = {
   Playercpfci0402: [[FDR,'',0,0,0,0]], Playerm87i30401: [[FDR,'',0,0,0,0]],
 };
 const vendorList = ['PG Soft','JILI','Pragmatic Play','FA CHAI'];
-const state = { task: '', vendor: '', closed: {} };
+const state = { task: '', vendor: '', closed: {}, tab: 'report' };
 function render() {
 const build = (tf, vf) => raw0.map(r => { const recs = (byTask[r[0]] || []).filter(p => !tf || p[0] === tf); const fs = recs.filter(p => p[1] && (!vf || p[1] === vf)); const sum = (a, i) => a.reduce((s, p) => s + p[i], 0);
   return [...r.slice(0,3), sum(fs,2), sum(fs,3), sum(fs,4), sum(recs,5), ...r.slice(7), recs.length > 0 && (!vf || fs.length > 0), recs.length > 0]; });
@@ -80,8 +80,8 @@ document.getElementById('app').innerHTML = `
     <div style="flex:1;min-width:0;padding:10px"><div style="background:#fff;padding:16px;border-radius:2px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><a href="#">‹ 返回活动列表</a><span style="font-weight:600;font-size:13px">砸金蛋彩金活动_新用户</span><span style="color:#52c41a">● 进行中</span></div>
       <div style="display:flex;border-bottom:1px solid #e5e5e5;margin-bottom:16px;white-space:nowrap">
-        <div style="padding:8px 14px;border:1px solid #e5e5e5;border-bottom:none">活动配置</div><div style="padding:8px 14px;border:1px solid #e5e5e5;border-bottom:none;border-left:none">任务配置</div><div style="padding:8px 14px;border:1px solid #e5e5e5;border-bottom:none;border-left:none">奖励与库存</div><div style="padding:8px 14px;border:1px solid #e5e5e5;border-bottom:1px solid #fff;border-left:none;color:#1677ff;margin-bottom:-1px">数据报表</div></div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <button type="button" onclick="state.tab='config';render()" style="font:inherit;cursor:pointer;background:#fff;padding:8px 14px;border:1px solid #e5e5e5;border-bottom:${state.tab==='config'?'1px solid #fff':'none'};color:${state.tab==='config'?'#1677ff':'#333'};margin-bottom:${state.tab==='config'?'-1px':'0'}">活动配置</button><div style="padding:8px 14px;border:1px solid #e5e5e5;border-bottom:none;border-left:none">任务配置</div><div style="padding:8px 14px;border:1px solid #e5e5e5;border-bottom:none;border-left:none">奖励与库存</div><button type="button" onclick="state.tab='report';render()" style="font:inherit;cursor:pointer;background:#fff;padding:8px 14px;border:1px solid #e5e5e5;border-left:none;border-bottom:${state.tab==='report'?'1px solid #fff':'none'};color:${state.tab==='report'?'#1677ff':'#333'};margin-bottom:${state.tab==='report'?'-1px':'0'}">数据报表</button></div>
+      ${state.tab==='config' ? configHtml() : `<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
         <span style="margin-right:6px">时间范围</span><span style="border:1px solid #d9d9d9;padding:5px 12px">今日</span><span style="border:1px solid #d9d9d9;padding:5px 12px">近7天</span><span style="border:1px solid #d9d9d9;padding:5px 12px">近30天</span><span style="background:#1677ff;color:#fff;padding:5px 12px">活动全程</span>
         <span style="margin-left:6px">自定义</span><span style="border:1px solid #d9d9d9;padding:5px 10px">2026-10-01</span>~<span style="border:1px solid #d9d9d9;padding:5px 10px">2026-10-21</span>
         <div style="display:flex;align-items:center;gap:8px;margin-left:10px"><span>任务</span><select onchange="state.task=this.value;render()" style="border:1px solid #d9d9d9;padding:4px 8px;font-size:12px;min-width:200px;height:26px;background:#fff"><option value="">全部任务</option>${tasks.map(t=>`<option ${state.task===t?"selected":""}>${t}</option>`).join('')}</select><span style="margin-left:6px">Freespins厂商</span><select onchange="state.vendor=this.value;render()" style="border:1px solid #d9d9d9;padding:4px 8px;font-size:12px;min-width:140px;height:26px;background:#fff"><option value="">全部厂商</option>${vendorList.map(v=>`<option ${state.vendor===v?"selected":""}>${v}</option>`).join('')}</select><span style="background:#1677ff;color:#fff;padding:5px 12px">查询</span></div></div>
@@ -94,9 +94,81 @@ document.getElementById('app').innerHTML = `
           <th style="${th}">玩家ID</th><th style="${th}">VIP</th><th style="${th}">命中任务</th><th style="${th}">发放Freespins</th><th style="${th};background:#fff7f0">Freespins Payout</th><th style="${th};background:#fff7f0">FS净输赢</th><th style="${th}">发放Bonus</th><th style="${th}">是否领取</th><th style="${th}">领取时间</th><th style="${th}">任务完成率</th><th style="${th}">操作</th></tr></thead><tbody>
           ${shown.map(r => `<tr><td style="${td}">${r.id}</td><td style="${td}">${r.vip}</td><td style="${td};white-space:normal;min-width:240px;line-height:1.6">${r.task}</td><td style="${td}">${r.fs}</td><td style="${td}">${r.payout}</td><td style="${td};color:${r.netColor};font-weight:600">${r.net}</td><td style="${td}">${r.bonus}</td><td style="${td}"><span style="padding:1px 6px;border:1px solid ${r.tagB};color:${r.tagC};background:${r.tagBg}">${r.claim}</span></td><td style="${td}">${r.time}</td><td style="${td}">${r.rate}</td><td style="${td}"><a href="#">详情 ›</a></td></tr>`).join('')}
         </tbody></table>
-        <div style="color:#999;font-size:11px;margin-top:10px">FS净输赢 = 免费转投注额 − Freespins Payout（平台视角：正值为平台赢，负值为平台输）</div></div>
+        <div style="color:#999;font-size:11px;margin-top:10px">FS净输赢 = 免费转投注额 − Freespins Payout（平台视角：正值为平台赢，负值为平台输）</div></div>`}
     </div></div></div></div>`;
 }
+const cfg = { img: null, cdOn: false, cdStyle: 'gold', x: 37, y: 20, over: false };
+const DIN = "font-family:'DIN Alternate','Bahnschrift','Arial Narrow',sans-serif;font-weight:700";
+const presets = [
+  { k: 'gold', name: '金色经典', wrap: `${DIN};padding:.25em .6em;border-radius:6px;border:2px solid #e0b64a;background:#1a0b3d;color:#ffd54a;text-shadow:0 0 6px rgba(255,179,0,.7)`, seg: '', sep: 'padding:0 .1em' },
+  { k: 'tiles', name: '分块数字', wrap: `${DIN};color:#fff`, seg: 'background:#111;border-radius:4px;padding:.12em .35em;box-shadow:inset 0 -2px 0 rgba(255,255,255,.15)', sep: 'padding:0 .2em;color:#ffd54a' },
+  { k: 'neon', name: '霓虹紫', wrap: `${DIN};padding:.25em .6em;border-radius:8px;border:2px solid #c77dff;background:rgba(30,0,60,.55);color:#fff;text-shadow:0 0 4px #c77dff,0 0 10px #c77dff;box-shadow:0 0 10px rgba(199,125,255,.6)`, seg: '', sep: 'padding:0 .1em' },
+  { k: 'red', name: '红色热力', wrap: `${DIN};padding:.25em .7em;border-radius:6px;background:linear-gradient(180deg,#ff5a4e,#c62828);color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.35)`, seg: '', sep: 'padding:0 .1em' },
+  { k: 'pill', name: '简约白', wrap: `${DIN};padding:.25em .9em;border-radius:999px;background:rgba(255,255,255,.92);color:#2a1260`, seg: '', sep: 'padding:0 .1em;color:#8a63d2' },
+];
+const segHtml = p => [['369D',0],[' ',1],['05',0],[':',1],['42',0],[':',1],['03',0]].map(([t,s]) => `<span style="display:inline-block;white-space:pre;${s ? p.sep : p.seg}">${t}</span>`).join('');
+function loadImg(file) { if (!file || !/^image\//.test(file.type)) return; const r = new FileReader(); r.onload = () => { cfg.img = { url: r.result, name: file.name }; render(); }; r.readAsDataURL(file); }
+function cfgOver(e) { e.preventDefault(); if (!cfg.over) { cfg.over = true; render(); } }
+function cfgLeave() { cfg.over = false; render(); }
+function cfgDrop(e) { e.preventDefault(); cfg.over = false; loadImg(e.dataTransfer.files[0]); render(); }
+function cdToggle() { if (cfg.img) { cfg.cdOn = !cfg.cdOn; render(); } }
+function cdPick(k) { cfg.cdStyle = k; render(); }
+function cdDown(e) {
+  e.preventDefault();
+  const el = e.currentTarget, box = el.parentElement.getBoundingClientRect(), r = el.getBoundingClientRect();
+  const ox = e.clientX - r.left, oy = e.clientY - r.top, maxX = 100 - r.width / box.width * 100, maxY = 100 - r.height / box.height * 100;
+  const c = (v, m) => Math.max(0, Math.min(m, v));
+  const move = ev => { cfg.x = Math.round(c((ev.clientX - ox - box.left) / box.width * 100, maxX) * 10) / 10; cfg.y = Math.round(c((ev.clientY - oy - box.top) / box.height * 100, maxY) * 10) / 10; render(); };
+  const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); };
+  addEventListener('pointermove', move); addEventListener('pointerup', up);
+}
+const sw = on => `<span aria-hidden="true" style="width:32px;height:18px;border-radius:9px;background:${on ? '#ff6b6b' : '#ddd'};position:relative;display:inline-block"><span style="position:absolute;${on ? 'right' : 'left'}:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff"></span></span>`;
+const seg3 = (opts, i) => `<div style="display:flex">${opts.map((o, j) => `<span style="border:1px solid ${j === i ? '#1677ff' : '#d9d9d9'};${j ? 'margin-left:-1px;' : ''}padding:4px 12px;background:${j === i ? '#1677ff' : '#fff'};color:${j === i ? '#fff' : '#333'}">${j === i ? '✔ ' : ''}${o}</span>`).join('')}</div>`;
+const card = (title, sub, body) => `<div style="border:1px solid #eee;border-radius:4px;padding:14px 16px;margin-bottom:12px"><div style="border-left:3px solid #1677ff;padding-left:8px;font-weight:600;font-size:13px;margin-bottom:${sub ? 4 : 16}px">${title}</div>${sub ? `<div style="color:#888;font-size:11px;margin:0 0 12px 11px">${sub}</div>` : ''}${body}</div>`;
+const lab = (t, req, id) => `<label ${id ? `for="${id}"` : ''} style="text-align:right;color:#555">${req ? '<span style="color:#cf1322">*</span> ' : ''}${t}</label>`;
+const range = (id, a, b) => `<div style="display:flex;align-items:center;gap:14px;border:1px solid #d9d9d9;padding:5px 10px;width:300px"><span aria-hidden="true" style="color:#bbb">◷</span><input id="${id}" value="${a}" style="border:0;outline:none;font-size:12px;width:105px">~<input aria-label="结束时间" value="${b}" style="border:0;outline:none;font-size:12px;width:105px"></div>`;
+const thr = (on, name, val, unit) => `${sw(on)}<span>${name}</span><span style="border:1px solid ${on ? '#d9d9d9' : '#eee'};padding:4px 8px;background:${on ? '#fff' : '#f5f5f5'};color:${on ? '#333' : '#bbb'}">≥ 大于等于 ⌄</span><span style="border:1px solid ${on ? '#d9d9d9' : '#eee'};padding:4px 8px;background:${on ? '#fff' : '#f5f5f5'};color:${on ? '#333' : '#bbb'}">${val}</span><span>${unit}</span>`;
+const btn = (t, st) => `<button type="button" style="font:inherit;cursor:pointer;${st}">${t}</button>`;
+const list = (name, c1, c2, c3, bb) => `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap"><span style="border:1px solid ${c1};background:${c2};color:${c3};padding:4px 12px">${name}</span><input aria-label="${name} userID" placeholder="userID（逗号 / 分号 / 换行分隔）" style="border:1px solid #d9d9d9;padding:5px 8px;font-size:12px;width:200px">${btn('↑ 批量导入', `background:${bb};color:#fff;border:0;padding:5px 12px`)}${btn('下载模板', 'background:#fff;border:1px solid #d9d9d9;padding:4px 12px')}${btn('查看名单', 'background:#fff;border:1px solid #d9d9d9;padding:4px 12px')}<span style="color:#888">已导入 0 人</span></div>`;
+function configHtml() {
+  const p = presets.find(x => x.k === cfg.cdStyle);
+  const cdOn = cfg.img && cfg.cdOn;
+  return `<div>
+  ${card('基础信息', '', `<div style="display:grid;grid-template-columns:100px 320px 90px 1fr;gap:14px 12px;align-items:center">
+    ${lab('活动名称', 1, 'cfg-name')}<div style="display:flex;align-items:center;border:1px solid #d9d9d9;padding:0 8px"><input id="cfg-name" value="砸金蛋彩金活动_新用户" style="border:0;outline:none;padding:6px 2px;font-size:12px;flex:1;min-width:0"><span style="color:#999;font-size:11px">11/50</span></div>
+    <span style="text-align:right;color:#555">活动状态</span><div style="display:flex;align-items:center;gap:8px">${sw(true).replace('#ff6b6b', '#1677ff')}<span style="color:#666">已开启 · 玩家端可见</span></div>
+    ${lab('活动优先级', 1, 'cfg-prio')}<div style="display:flex;align-items:center;gap:8px;grid-column:span 3"><input id="cfg-prio" value="1" style="border:1px solid #d9d9d9;padding:6px 10px;font-size:12px;width:80px"><span style="color:#888;font-size:11px">数字越小优先级越高；用户同时命中多个砸金蛋活动时，仅进入优先级最高的一个</span></div></div>`)}
+  ${card('时间配置', '', `<div style="display:grid;grid-template-columns:100px 1fr;gap:14px 12px;align-items:center">
+    ${lab('活动时间', 1, 'cfg-t1')}${range('cfg-t1', '2026-10-01 00:00', '2026-10-31 23:59')}
+    ${lab('活动展示时间', 0, 'cfg-t2')}<div style="display:flex;align-items:center;gap:10px">${range('cfg-t2', '2026-10-01 00:00', '2026-10-31 23:59')}<span style="color:#888;font-size:11px">ⓘ 展示时间独立于持续时间：可「已结束但仍展示」（返场露出），也可「已开始但先不展示」；未配置时回落为持续时间</span></div></div>`)}
+  ${card('目标人群与任务命中', '两步决定一位玩家的活动体验：① 谁能参与 → ② 名单微调。', `
+    <div style="background:#fafafa;border:1px solid #f0f0f0;border-radius:4px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-weight:600;margin-bottom:4px">① 谁能参与 · 进入门槛</div>
+      <div style="color:#888;font-size:11px;margin-bottom:12px">先按资格状态（KYC/首充/首投）圈定人群，再叠加数值门槛；开启的条件需同时满足，关闭即不限制。</div>
+      <div style="display:grid;grid-template-columns:90px 1fr;gap:10px 12px;align-items:center;margin-bottom:12px">
+        <span style="text-align:right;color:#555">有无 KYC</span>${seg3(['未 KYC', '已 KYC', '不限'], 1)}
+        <span style="text-align:right;color:#555">有无首充</span>${seg3(['未首充', '已首充', '不限'], 0)}
+        <span style="text-align:right;color:#555">有无首投</span>${seg3(['未首投', '已首投', '不限'], 2)}</div>
+      <div style="display:grid;grid-template-columns:40px 110px 120px 130px 1fr;gap:8px;align-items:center">
+        ${thr(1, '累计充值次数', 1, '次')}${thr(1, '累计充值金额', 100, '₱')}${thr(0, '累计投注金额', 0, '₱')}${thr(0, '连续投注天数', 3, '天 <span style="border:1px solid #e5e5e5;padding:0 4px;color:#999;font-size:11px">待接入</span>')}${thr(0, '连续登录天数', 0, '天')}</div></div>
+    <div style="background:#fafafa;border:1px solid #f0f0f0;border-radius:4px;padding:12px 14px">
+      <div style="font-weight:600;margin-bottom:10px">② 名单微调（黑 / 白名单）</div>
+      ${list('白名单', '#91caff', '#e6f4ff', '#1677ff', '#52c41a')}${list('黑名单', '#ffa39e', '#fff1f0', '#cf1322', '#ff4d4f')}
+      <div style="color:#888;font-size:11px">白名单强制纳入（忽略门槛）、黑名单强制排除。批量导入只支持 .csv / .txt。</div></div>`)}
+  ${card('活动 Banner', '在富文本编辑器中上传 Banner 图片，再插入倒计时并拖到图片上的位置。PC 与移动端共用；倒计时截止时间 = 活动结束时间，样式从预设中选择。', `
+    <div style="max-width:760px;margin-left:11px;border:1px solid #d9d9d9;background:#fff">
+      <div style="display:flex;align-items:center;gap:4px;padding:6px 8px;background:#fafafa;border-bottom:1px solid #e8e8e8">
+        <label style="cursor:pointer;padding:3px 8px;border:1px solid #d9d9d9;background:#fff">🖼 图片<input type="file" accept="image/png,image/jpeg,image/webp" onchange="loadImg(this.files[0])" style="position:absolute;width:1px;height:1px;opacity:0"></label>
+        <button type="button" onclick="cdToggle()" ${cfg.img ? '' : 'disabled'} title="先上传图片再插入倒计时" style="font:inherit;cursor:pointer;padding:3px 8px;border:1px solid ${cdOn ? '#1677ff' : '#d9d9d9'};background:${cdOn ? '#e6f4ff' : '#fff'};color:${cfg.img ? (cdOn ? '#1677ff' : '#333') : '#bbb'}">⏱ ${cdOn ? '移除倒计时' : '插入倒计时'}</button></div>
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px;border-bottom:1px solid #e8e8e8"><span style="color:#555;margin-right:2px">倒计时样式</span>
+        ${presets.map(x => `<button type="button" onclick="cdPick('${x.k}')" aria-pressed="${x.k === cfg.cdStyle}" style="font:inherit;cursor:pointer;padding:7px 10px 5px;border:2px solid ${x.k === cfg.cdStyle ? '#1677ff' : 'transparent'};border-radius:6px;background:#2a1260;display:flex;flex-direction:column;align-items:center;gap:5px;min-width:92px"><span style="display:inline-flex;align-items:center;white-space:nowrap;font-size:11px;${x.wrap}">${segHtml(x)}</span><span style="color:#fff;font-size:11px">${x.name}</span></button>`).join('')}</div>
+      <div ondragover="cfgOver(event)" ondragleave="cfgLeave()" ondrop="cfgDrop(event)" style="padding:12px;min-height:200px;outline:${cfg.over ? '2px dashed #1677ff' : 'none'};outline-offset:-4px">
+        ${cfg.img ? `<div style="position:relative;width:100%"><img src="${cfg.img.url}" alt="活动 Banner" draggable="false" style="display:block;width:100%;border-radius:8px;user-select:none">${cdOn ? `<div onpointerdown="cdDown(event)" title="拖动调整位置" style="position:absolute;left:${cfg.x}%;top:${cfg.y}%;cursor:move;user-select:none;touch-action:none;display:inline-flex;align-items:center;white-space:nowrap;font-size:18px;letter-spacing:1px;outline:1px dashed #1677ff;outline-offset:3px;${p.wrap}">${segHtml(p)}</div>` : ''}</div>`
+          : `<div style="height:200px;border:1px dashed #d9d9d9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#888;pointer-events:none"><span style="font-size:13px">点工具栏「图片」上传，或把图片拖到这里</span><span style="font-size:11px">JPG / PNG / WebP，≤ 2MB</span></div>`}</div>
+      <div style="padding:5px 10px;border-top:1px solid #f0f0f0;color:#888;font-size:11px">图片：${cfg.img ? cfg.img.name : '未上传'}${cdOn ? ` · 倒计时位置：距左 ${cfg.x}% / 距顶 ${cfg.y}%` : ''}</div></div>`)}
+  <div style="display:flex;gap:10px;border-top:1px solid #eee;padding-top:14px">${btn('保存配置', 'background:#1677ff;color:#fff;border:0;padding:6px 18px')}<button type="button" onclick="state.tab='report';render()" style="font:inherit;cursor:pointer;background:#fff;color:#333;border:1px solid #d9d9d9;padding:6px 18px">取消</button></div></div>`;
+}
+
 function alerts_all(){ for (let k=0;k<10;k++) state.closed[k]=1; render(); }
 render();
 </script></body></html>
