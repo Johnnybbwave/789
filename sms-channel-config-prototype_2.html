@@ -138,31 +138,30 @@ table.acc{min-width:720px}
 
 <script>
 const COLORS = [['#e6a23c', '#fdf6ec'], ['#409eff', '#ecf5ff'], ['#67c23a', '#f0f9eb'], ['#909399', '#f4f4f5'], ['#f56c6c', '#fef0f0']];
-// 每个账号就是原来的一整套 SMPP 配置
-const acc = (host = '', port = '', systemId = '', sessionCount = 1, windowSize = 10, sourceAddr = '', passwordSet = false) => ({ host, port, systemId, sessionCount, windowSize, sourceAddr, passwordSet });
-// enabled: 运营商开关；mode: concurrent 并发 / single 指定账号；single: 指定的账号序号
-const op = (accounts, enabled = true) => ({ enabled, mode: 'concurrent', single: 0, accounts });
+const OPERATORS = ['Globe', 'Smart', 'DITO'];
+let accSeq = 100;
+// 每个账号 = 一套 SMPP 配置 + 所属运营商
+const acc = (operator, host = '', port = '', systemId = '', sessionCount = 1, windowSize = 10, sourceAddr = '', passwordSet = false) =>
+  ({ id: accSeq++, operator, host, port, systemId, sessionCount, windowSize, sourceAddr, passwordSet, enabled: true });
 let channels = [
-  { id: 1, name: '渠道 A', usage: '待分配', task: '—', on: true, color: 0,
-    globe: op([acc('smpp-otp.m360.com.ph', '2074', '', 1, 10, 'PLAY789', true)]),
-    smart: op([acc('smpp.m360.com.ph', '2614', '', 10, 10, '789BingoVip', true)]) },
-  { id: 2, name: '渠道 B', usage: '奖励金到账（非充值类）', task: 'AgentActivitySmppJob', on: true, color: 1,
-    globe: op([acc()]), smart: op([acc()]) },
-  { id: 3, name: '渠道C', usage: '营销短信', task: 'MarketingSmsJob、T3SMPPJob', on: true, color: 2,
-    globe: op([acc()]), smart: op([acc()]) }
+  { id: 1, name: '渠道 A', usage: '待分配', task: '—', on: true, color: 0, accounts: [
+    acc('Globe', 'smpp-otp.m360.com.ph', '2074', '', 1, 10, 'PLAY789', true),
+    acc('Smart', 'smpp.m360.com.ph', '2614', '', 10, 10, '789BingoVip', true) ] },
+  { id: 2, name: '渠道 B', usage: '奖励金到账（非充值类）', task: 'AgentActivitySmppJob', on: true, color: 1, accounts: [] },
+  { id: 3, name: '渠道C', usage: '营销短信', task: 'MarketingSmsJob、T3SMPPJob', on: true, color: 2, accounts: [] }
 ];
-let nextId = 4, curId = 1, draft = null, pendingDel = null, msg = null;
+let nextId = 4, curId = 1, draft = null, msg = null;
 
 // 持久化：保存在浏览器本地，刷新后保留
-const STORE_KEY = 'sms-channel-config-prototype-v5';
-const DEFAULTS = JSON.parse(JSON.stringify({ channels, nextId }));
+const STORE_KEY = 'sms-channel-config-prototype-v6';
+const DEFAULTS = JSON.parse(JSON.stringify({ channels, nextId, accSeq }));
 function persist() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify({ channels, nextId, curId })); } catch (e) {}
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({ channels, nextId, curId, accSeq })); } catch (e) {}
 }
 try {
   const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
   if (saved && Array.isArray(saved.channels)) {
-    channels = saved.channels; nextId = saved.nextId || 4;
+    channels = saved.channels; nextId = saved.nextId || 4; accSeq = saved.accSeq || 1000;
     curId = channels.some(c => c.id === saved.curId) ? saved.curId : (channels[0] ? channels[0].id : null);
   }
 } catch (e) {}
@@ -170,54 +169,37 @@ try {
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const clone = o => JSON.parse(JSON.stringify(o));
-const total = d => d.accounts.reduce((s, a) => s + (parseInt(a.sessionCount, 10) || 0), 0);
+const isOn = a => a.enabled !== false;
 
-function select(id) { pendingAccDel = null; curId = id; draft = id ? clone(channels.find(c => c.id === id)) : null; msg = null; persist(); renderAll(); }
+function select(id) { curId = id; draft = id ? clone(channels.find(c => c.id === id)) : null; msg = null; persist(); renderAll(); }
 
 function renderList() {
   $('#chRows').innerHTML = channels.map(c => {
     const [fg, bg] = COLORS[c.color % COLORS.length];
-    const del = pendingDel === c.id
-      ? `<span class="confirm">确认删除？</span><button class="lnk red" data-act="delYes" data-id="${c.id}">是</button><button class="lnk" data-act="delNo">否</button>`
-      : `<button class="lnk" data-act="edit" data-id="${c.id}">${c.id === curId ? '配置中' : '配置'}</button>`;
     return `<tr class="${c.id === curId ? 'cur' : ''}">
       <td><span class="chip" style="color:${fg};background:${bg};border-color:${fg}55">${esc(c.name)}</span></td>
       <td>${esc(c.usage)}</td><td class="mono">${esc(c.task)}</td>
-      <td><button class="sw" role="switch" aria-checked="${c.on}" aria-label="${esc(c.name)} 开关" data-act="chToggle" data-id="${c.id}"><span></span></button><span class="swl ${c.on ? 'ok' : 'off'}">${c.on ? '开启' : '关闭'}</span></td><td>${del}</td></tr>`;
+      <td><button class="sw" role="switch" aria-checked="${c.on}" aria-label="${esc(c.name)} 开关" data-act="chToggle" data-id="${c.id}"><span></span></button><span class="swl ${c.on ? 'ok' : 'off'}">${c.on ? '开启' : '关闭'}</span></td>
+      <td><button class="lnk" data-act="edit" data-id="${c.id}">${c.id === curId ? '配置中' : '配置'}</button></td></tr>`;
   }).join('') || '<tr><td colspan="5" class="empty">暂无渠道，点击「新增渠道」添加</td></tr>';
 }
 
-let pendingAccDel = null; // 'globe:1'
-
-function opHtml(key, name, color) {
-  const d = draft[key];
-  const on = true, single = false; // 只保留并发：所有已开启的账号一起发送
-  if (d.single >= d.accounts.length) d.single = 0;
-  const isOn = a => a.enabled !== false;
-  const onCount = d.accounts.filter(isOn).length;
-  const rows = d.accounts.map((a, i) => {
-    const ops = pendingAccDel === key + ':' + i
-      ? `<span class="confirm">确认删除？</span><button class="lnk red" data-act="accDelYes" data-op="${key}" data-i="${i}">是</button><button class="lnk" data-act="accDelNo">否</button>`
-      : `<button class="lnk" data-act="accEdit" data-op="${key}" data-i="${i}">编辑</button>`;
-    const unused = !isOn(a) || (single && i !== d.single);
-    const sw = `<button class="sw" role="switch" aria-checked="${isOn(a)}" aria-label="账号 ${i + 1} 开关" data-act="accToggle" data-op="${key}" data-i="${i}"><span></span></button><span class="swl ${isOn(a) ? 'ok' : 'off'}">${isOn(a) ? '开启' : '关闭'}</span>`;
-    return `<tr class="${unused ? 'unused' : ''}"><td>${i + 1}</td><td class="nowrap sw-cell">${sw}</td><td>${esc(a.host)}</td><td>${esc(a.port)}</td><td>${esc(a.systemId)}</td>
-      <td>${a.passwordSet ? '******' : ''}</td><td>${esc(a.sessionCount)}</td><td>${esc(a.windowSize)}</td><td>${esc(a.sourceAddr)}</td><td class="nowrap">${ops}</td></tr>`;
-  }).join('') || '<tr><td colspan="10" class="empty" style="padding:20px">暂无账号</td></tr>';
-  const accOpts = d.accounts.map((a, i) => `<option value="${i}"${i === d.single ? ' selected' : ''}${isOn(a) ? '' : ' disabled'}>账号 ${i + 1}${a.systemId ? ' · ' + esc(a.systemId) : ''}${isOn(a) ? '' : '（已关闭）'}</option>`).join('');
-  // 只在异常时提示
-  const hint = onCount === 0 ? `所有账号都已关闭，${name} 不会发送短信。`
-    : single && !isOn(d.accounts[d.single]) ? `指定的账号 ${d.single + 1} 已关闭，请改选其他账号。` : '';
-  return `<section data-sec="${key}" class="${on ? '' : 'disabled'}">
-    <div class="op-head">
-      <p class="op"><i style="background:${color}"></i>${name}</p>
-    </div>
-    ${hint ? `<div class="hint" style="margin:0 0 8px;color:#e6a23c">${hint}</div>` : '<div style="height:6px"></div>'}
+function accountsHtml() {
+  const list = draft.accounts;
+  const rows = list.map((a, i) => {
+    const sw = `<button class="sw" role="switch" aria-checked="${isOn(a)}" aria-label="账号 ${i + 1} 开关" data-act="accToggle" data-i="${i}"><span></span></button><span class="swl ${isOn(a) ? 'ok' : 'off'}">${isOn(a) ? '开启' : '关闭'}</span>`;
+    return `<tr class="${isOn(a) ? '' : 'unused'}"><td>${i + 1}</td><td class="nowrap sw-cell">${sw}</td><td>${esc(a.operator)}</td><td>${esc(a.host)}</td><td>${esc(a.port)}</td><td>${esc(a.systemId)}</td>
+      <td>${a.passwordSet ? '******' : ''}</td><td>${esc(a.sessionCount)}</td><td>${esc(a.windowSize)}</td><td>${esc(a.sourceAddr)}</td>
+      <td class="nowrap"><button class="lnk" data-act="accEdit" data-i="${i}">编辑</button></td></tr>`;
+  }).join('') || '<tr><td colspan="11" class="empty" style="padding:20px">暂无账号，点击「添加账号」</td></tr>';
+  // 只在异常时提示：某个已配置的运营商账号全部关闭
+  const offOps = OPERATORS.filter(o => list.some(a => a.operator === o) && !list.some(a => a.operator === o && isOn(a)));
+  const hint = offOps.length ? `${offOps.join('、')} 的账号都已关闭，不会通过 ${offOps.join('、')} 发送短信。` : '';
+  return `${hint ? `<div class="hint" style="margin:0 0 8px;color:#e6a23c">${hint}</div>` : ''}
     <div class="tbox"><table class="list acc">
-      <thead><tr><th>#</th><th>状态</th><th>host</th><th>port</th><th>systemId</th><th>password</th><th>sessionCount</th><th>windowSize</th><th>sourceAddr</th><th>操作</th></tr></thead>
+      <thead><tr><th>#</th><th>状态</th><th>运营商</th><th>host</th><th>port</th><th>systemId</th><th>password</th><th>sessionCount</th><th>windowSize</th><th>sourceAddr</th><th>操作</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
-    <button class="add" data-act="accAdd" data-op="${key}">＋ 添加账号</button>
-  </section>`;
+    <button class="add" data-act="accAdd">＋ 添加账号</button>`;
 }
 
 function renderCfg() {
@@ -232,7 +214,7 @@ function renderCfg() {
         <tr><th>用途</th><td><input class="inp" data-k="usage" value="${esc(d.usage)}"></td></tr>
         <tr><th>任务</th><td><input class="inp" data-k="task" value="${esc(d.task)}"></td></tr>
       </table>
-      <div class="cols">${opHtml('globe', 'Globe', '#409eff')}${opHtml('smart', 'Smart', '#13ce66')}</div>
+      <div style="margin-top:14px">${accountsHtml()}</div>
     </div>
     <div class="actions">
       <button class="btn primary" data-act="save">保存</button>
@@ -244,69 +226,44 @@ function renderCfg() {
 function renderAll() { renderList(); renderCfg(); }
 function setMsg(text, err) { msg = text ? { text, err } : null; const m = document.querySelector('.actions .msg'); if (m && !msg) m.remove(); }
 
-// list actions
+// 渠道列表
 $('#chRows').addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const id = +b.dataset.id;
-  if (b.dataset.act === 'edit') { pendingDel = null; select(id); }
-  if (b.dataset.act === 'del') { pendingDel = id; renderList(); }
-  if (b.dataset.act === 'delNo') { pendingDel = null; renderList(); }
+  if (b.dataset.act === 'edit') select(id);
   if (b.dataset.act === 'chToggle') {
     const c = channels.find(x => x.id === id); c.on = !c.on;
     if (draft && draft.id === id) draft.on = c.on;
     persist(); renderList();
   }
-  if (b.dataset.act === 'delYes') {
-    channels = channels.filter(c => c.id !== id); pendingDel = null;
-    if (curId === id) select(channels[0] ? channels[0].id : null); else { persist(); renderList(); }
-  }
 });
 $('#addCh').addEventListener('click', () => {
   const id = nextId++;
-  channels.push({ id, name: '新渠道 ' + id, usage: '', task: '', on: false, color: id - 1,
-    globe: op([acc()]), smart: op([acc()]) });
-  pendingDel = null; select(id);
+  channels.push({ id, name: '新渠道 ' + id, usage: '', task: '', on: false, color: id - 1, accounts: [] });
+  select(id);
   const n = $('#cfg [data-k="name"]'); n.focus(); n.select();
 });
 
-// config edits
+// 渠道配置
 $('#cfg').addEventListener('input', e => {
   const t = e.target, k = t.dataset.k; if (!k) return;
-  if (!t.dataset.op) draft[k] = t.value;
-  else if (t.dataset.i === undefined) draft[t.dataset.op][k] = t.value;
-  else draft[t.dataset.op].accounts[+t.dataset.i][k] = t.value;
-  setMsg(null);
-});
-$('#cfg').addEventListener('change', e => {
-  const t = e.target, d = draft[t.dataset.op];
-  if (t.dataset.mode !== undefined) {
-    d.mode = t.value;
-    if (d.mode === 'single' && d.accounts[d.single] && d.accounts[d.single].enabled === false) {
-      const first = d.accounts.findIndex(x => x.enabled !== false); if (first >= 0) d.single = first;
-    }
-  }
-  else if (t.dataset.single !== undefined) d.single = +t.value;
-  else return;
-  msg = null; renderCfg();
+  draft[k] = t.value; setMsg(null);
 });
 $('#cfg').addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
-  const a = b.dataset.act, key = b.dataset.op;
-  if (a === 'accAdd') { openModal(key, -1); return; }
-  if (a === 'accEdit') { openModal(key, +b.dataset.i); return; }
-  if (a === 'accDel') { pendingAccDel = key + ':' + b.dataset.i; renderCfg(); return; }
-  if (a === 'accDelNo') { pendingAccDel = null; renderCfg(); return; }
+  const a = b.dataset.act;
+  if (a === 'accAdd') { openModal(-1); return; }
+  if (a === 'accEdit') { openModal(+b.dataset.i); return; }
   if (a === 'accToggle') {
     // 账号开关即时生效，不需要点保存
-    const i = +b.dataset.i, acct = draft[key].accounts[i];
-    acct.enabled = acct.enabled === false;
+    const i = +b.dataset.i, acct = draft.accounts[i];
+    acct.enabled = !isOn(acct);
     const saved = channels.find(c => c.id === curId);
-    const twin = saved && saved[key].accounts.find(x => x.systemId === acct.systemId && x.host === acct.host && x.port === acct.port);
+    const twin = saved && saved.accounts.find(x => x.id === acct.id);
     if (twin) { twin.enabled = acct.enabled; persist(); }
     msg = twin ? { text: `账号 ${i + 1} 已${acct.enabled ? '开启' : '关闭'}（即时生效）` } : { text: '新账号的开关在点击「保存」后生效' };
     renderCfg(); return;
   }
-  if (a === 'accDelYes') { const di = +b.dataset.i, d = draft[key]; d.accounts.splice(di, 1); if (d.single > di || d.single >= d.accounts.length) d.single = Math.max(0, d.single - 1); pendingAccDel = null; msg = { text: '账号已删除，点击「保存」生效' }; renderCfg(); return; }
   if (a === 'reset') { select(curId); return; }
   if (a === 'save') {
     if (!draft.name.trim()) { msg = { text: '渠道名称不能为空', err: true }; renderCfg(); return; }
@@ -316,47 +273,53 @@ $('#cfg').addEventListener('click', e => {
     msg = { text: '已保存（保存在本浏览器，刷新后保留）' };
     renderAll(); return;
   }
-  msg = null; renderCfg();
 });
 
 // 账号弹框
 const FIELDS = [
+  ['operator', '运营商', 'select', true],
   ['host', 'host', 'text', true], ['port', 'port', 'text', true], ['systemId', 'systemId', 'text', true],
   ['password', 'password', 'password', false], ['sessionCount', 'sessionCount', 'number', true],
   ['windowSize', 'windowSize', 'number', true], ['sourceAddr', 'sourceAddr', 'text', false]
 ];
-let modalCtx = null;
-function openModal(key, i) {
-  modalCtx = { key, i };
-  const list = draft[key].accounts;
+let modalIdx = null;
+function openModal(i) {
+  modalIdx = i;
+  const list = draft.accounts;
   const last = list[list.length - 1];
-  const a = i >= 0 ? list[i] : acc(last ? last.host : '', last ? last.port : '', '', last ? last.sessionCount : 1, last ? last.windowSize : 10, last ? last.sourceAddr : '');
-  $('#mTitle').textContent = (i >= 0 ? '编辑账号 ' + (i + 1) : '添加账号') + ' · ' + (key === 'globe' ? 'Globe' : 'Smart');
+  const a = i >= 0 ? list[i] : { operator: '', host: last ? last.host : '', port: last ? last.port : '', systemId: '',
+    sessionCount: last ? last.sessionCount : 1, windowSize: last ? last.windowSize : 10, sourceAddr: last ? last.sourceAddr : '' };
+  $('#mTitle').textContent = i >= 0 ? '编辑账号 ' + (i + 1) : '添加账号';
   $('#mBody').innerHTML = FIELDS.map(([k, label, type, req]) => {
-    const isPwd = k === 'password';
-    const ph = isPwd ? (i >= 0 && a.passwordSet ? '不修改请留空' : '') : '';
-    return `<tr><th>${req ? '<span class="req">*</span>' : ''}${label}</th><td>
-      <input class="inp" type="${type}" name="${k}" value="${isPwd ? '' : esc(a[k])}" placeholder="${ph}" autocomplete="${isPwd ? 'new-password' : 'off'}"${type === 'number' ? ' min="1"' : ''}></td></tr>`;
+    let input;
+    if (type === 'select') {
+      input = `<select class="inp" name="${k}"><option value=""${a.operator ? '' : ' selected'} disabled>请选择</option>${OPERATORS.map(o => `<option${o === a.operator ? ' selected' : ''}>${o}</option>`).join('')}</select>`;
+    } else {
+      const isPwd = k === 'password';
+      const ph = isPwd && i >= 0 && a.passwordSet ? '不修改请留空' : '';
+      input = `<input class="inp" type="${type}" name="${k}" value="${isPwd ? '' : esc(a[k])}" placeholder="${ph}" autocomplete="${isPwd ? 'new-password' : 'off'}"${type === 'number' ? ' min="1"' : ''}>`;
+    }
+    return `<tr><th>${req ? '<span class="req">*</span>' : ''}${label}</th><td>${input}</td></tr>`;
   }).join('');
   $('#mErr').textContent = '';
   $('#modal').hidden = false;
-  $('#mBody input[name="' + (i >= 0 ? 'host' : 'systemId') + '"]').focus();
+  $('#mBody [name="' + (i >= 0 ? 'operator' : 'systemId') + '"]').focus();
 }
-function closeModal() { $('#modal').hidden = true; modalCtx = null; }
+function closeModal() { $('#modal').hidden = true; modalIdx = null; }
 $('#mCancel').addEventListener('click', closeModal);
 $('#mClose').addEventListener('click', closeModal);
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#modal').hidden) closeModal(); });
 $('#mForm').addEventListener('submit', e => {
   e.preventDefault();
-  const { key, i } = modalCtx, list = draft[key].accounts;
-  const v = Object.fromEntries(FIELDS.map(([k]) => [k, $('#mBody input[name="' + k + '"]').value.trim()]));
+  const i = modalIdx, list = draft.accounts;
+  const v = Object.fromEntries(FIELDS.map(([k]) => [k, $('#mBody [name="' + k + '"]').value.trim()]));
   const missing = FIELDS.filter(([k, , , req]) => req && !v[k]).map(([, l]) => l);
   if (i < 0 && !v.password) missing.push('password');
   if (missing.length) { $('#mErr').textContent = '请填写：' + missing.join('、'); return; }
-  const old = i >= 0 ? list[i] : {};
-  const next = { host: v.host, port: v.port, systemId: v.systemId, sessionCount: v.sessionCount, windowSize: v.windowSize, sourceAddr: v.sourceAddr,
-    passwordSet: !!(v.password || old.passwordSet), enabled: old.enabled !== false };
+  const old = i >= 0 ? list[i] : { id: accSeq++, enabled: true };
+  const next = { id: old.id, operator: v.operator, host: v.host, port: v.port, systemId: v.systemId, sessionCount: v.sessionCount, windowSize: v.windowSize,
+    sourceAddr: v.sourceAddr, passwordSet: !!(v.password || old.passwordSet), enabled: old.enabled !== false };
   if (i >= 0) list[i] = next; else list.push(next);
   closeModal();
   msg = { text: '账号已' + (i >= 0 ? '修改' : '添加') + '，点击「保存」生效' };
@@ -367,7 +330,7 @@ $('#mForm').addEventListener('submit', e => {
 $('#resetAll').addEventListener('click', e => {
   const b = e.target;
   if (b.dataset.confirm !== '1') { b.dataset.confirm = '1'; b.textContent = '确认重置？再点一次'; b.style.color = '#f56c6c'; return; }
-  const d = clone(DEFAULTS); channels = d.channels; nextId = d.nextId; pendingDel = null;
+  const d = clone(DEFAULTS); channels = d.channels; nextId = d.nextId; accSeq = d.accSeq;
   b.dataset.confirm = ''; b.textContent = '重置为初始数据'; b.style.color = '#909399';
   select(channels[0].id);
 });
